@@ -167,6 +167,16 @@ body {
   background-color: #2d2a45;
   border-radius: 4px;
   padding: 8px;
+  transition: opacity 0.15s;
+}
+
+.ast-sentence-uncommitted {
+  opacity: 0.5;
+  border-left: 2px solid #666;
+}
+
+.ast-sentence-committed {
+  border-left: 2px solid #4ade80;
 }
 
 .ast-sentence-header {
@@ -182,6 +192,10 @@ body {
   padding: 1px 6px;
   border-radius: 3px;
   font-weight: bold;
+}
+
+.ast-sentence-committed .ast-sentence-index {
+  background-color: #4ade80;
 }
 
 .ast-range {

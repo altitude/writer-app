@@ -91,6 +91,11 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
   const sentenceSelectionRef = useRef(sentenceSelection);
   sentenceSelectionRef.current = sentenceSelection;
 
+  // Track which sentences are committed (by index). Uncommitted sentences are faded.
+  const [committedSentences, setCommittedSentences] = useState<Set<number>>(new Set());
+  const committedSentencesRef = useRef(committedSentences);
+  committedSentencesRef.current = committedSentences;
+
   const { setData: setDebugData } = useDebug();
   const { subscribe } = useVirtualKeyboard();
 
@@ -285,6 +290,26 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
             end: selection.direction === 'right' ? newMaxIdx : newMinIdx,
           });
           
+          // Update committed sentences indices after reorder
+          // Moving up: selected sentences move from [minIdx..maxIdx] to [minIdx-1..maxIdx-1]
+          // The previous sentence (minIdx-1) moves to maxIdx
+          setCommittedSentences(prev => {
+            const next = new Set<number>();
+            for (const idx of prev) {
+              if (idx >= minIdx && idx <= maxIdx) {
+                // Selected sentences move up by 1
+                next.add(idx - 1);
+              } else if (idx === minIdx - 1) {
+                // Previous sentence moves to where last selected was
+                next.add(maxIdx);
+              } else {
+                // Other sentences stay the same
+                next.add(idx);
+              }
+            }
+            return next;
+          });
+          
           // Move cursor to start of moved sentence
           cursorRef.current = before.length;
           setCursorPosition(before.length);
@@ -339,6 +364,26 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
             end: selection.direction === 'right' ? newMaxIdx : newMinIdx,
           });
           
+          // Update committed sentences indices after reorder
+          // Moving down: selected sentences move from [minIdx..maxIdx] to [minIdx+1..maxIdx+1]
+          // The next sentence (maxIdx+1) moves to minIdx
+          setCommittedSentences(prev => {
+            const next = new Set<number>();
+            for (const idx of prev) {
+              if (idx >= minIdx && idx <= maxIdx) {
+                // Selected sentences move down by 1
+                next.add(idx + 1);
+              } else if (idx === maxIdx + 1) {
+                // Next sentence moves to where first selected was
+                next.add(minIdx);
+              } else {
+                // Other sentences stay the same
+                next.add(idx);
+              }
+            }
+            return next;
+          });
+          
           // Move cursor to new position of moved sentence
           const newPos = before.length + nextSentenceText.length + sepBetweenSelectedAndNext.length;
           cursorRef.current = newPos;
@@ -357,9 +402,30 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         // Check if there's a selection to delete
         if (currentSentenceSelection) {
           const range = getSentenceSelectionRange(currentAst, currentSentenceSelection);
+          const minIdx = Math.min(currentSentenceSelection.start, currentSentenceSelection.end);
+          const maxIdx = Math.max(currentSentenceSelection.start, currentSentenceSelection.end);
+          const deletedCount = maxIdx - minIdx + 1;
+          
           setText((prev) => prev.slice(0, range.start) + prev.slice(range.end));
           cursorRef.current = range.start;
           setCursorPosition(range.start);
+          
+          // Update committed sentences after deletion
+          setCommittedSentences(prev => {
+            const next = new Set<number>();
+            for (const idx of prev) {
+              if (idx < minIdx) {
+                // Before deleted range: stays the same
+                next.add(idx);
+              } else if (idx > maxIdx) {
+                // After deleted range: shift down by number of deleted sentences
+                next.add(idx - deletedCount);
+              }
+              // Indices within deleted range are simply not added
+            }
+            return next;
+          });
+          
           clearSelections();
         } else if (currentWordSelection) {
           const range = getWordSelectionRange(currentAst, currentWordSelection);
@@ -390,6 +456,27 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
             setCursorPosition(pos - 1);
           }
         }
+      } else if (event.key === "Enter" && event.metaKey) {
+        // Cmd+Enter: Commit current sentence or selected sentences
+        const currentSentenceSelection = sentenceSelectionRef.current;
+        
+        if (currentSentenceSelection) {
+          // Commit all selected sentences
+          const minIdx = Math.min(currentSentenceSelection.start, currentSentenceSelection.end);
+          const maxIdx = Math.max(currentSentenceSelection.start, currentSentenceSelection.end);
+          setCommittedSentences(prev => {
+            const next = new Set(prev);
+            for (let i = minIdx; i <= maxIdx; i++) {
+              next.add(i);
+            }
+            return next;
+          });
+          clearSelections();
+        } else {
+          // Commit the sentence at cursor position
+          const sentenceIdx = getSentenceIndexAtPosition(currentAst, cursorRef.current);
+          setCommittedSentences(prev => new Set(prev).add(sentenceIdx));
+        }
       } else if (event.key === "Enter") {
         clearSelections();
         const pos = cursorRef.current;
@@ -419,6 +506,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           index: s.index,
           text: text.slice(s.charStart, s.charEnd),
           range: [s.charStart, s.charEnd],
+          committed: committedSentences.has(s.index),
           tokens: s.tokens.map(t => ({
             type: t.type,
             text: t.text,
@@ -427,9 +515,10 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         })),
         wordCount: ast.words.length,
         sentenceCount: ast.sentences.length,
+        committedCount: committedSentences.size,
       },
     });
-  }, [ast, cursorPosition, sentenceSelection, setDebugData, text, wordSelection]);
+  }, [ast, committedSentences, cursorPosition, sentenceSelection, setDebugData, text, wordSelection]);
 
   const isWordSelected = (index: number) => {
     if (!wordSelection) return false;
@@ -441,15 +530,14 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
   const renderText = (ast: DocumentAST) => {
     const { text, words, sentences } = ast;
     const elements: React.ReactNode[] = [];
-    
-    // Determine if last word is uncommitted (no trailing separator)
-    const lastWord = words[words.length - 1];
-    const isLastWordCommitted = lastWord ? lastWord.charEnd < text.length : true;
 
     let charIndex = 0;
 
     // Iterate through all tokens from all sentences
     for (const sentence of sentences) {
+      // Check if this sentence is uncommitted (not in committedSentences set)
+      const isSentenceUncommitted = !committedSentences.has(sentence.index);
+      
       for (const token of sentence.tokens) {
         // Skip if we've already processed this position (overlapping)
         if (token.charStart < charIndex) continue;
@@ -463,7 +551,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           ? words.findIndex(w => w.charStart === token.charStart)
           : -1;
 
-        const isUncommitted = token.type === 'word' && wordIndex === words.length - 1 && !isLastWordCommitted;
+        const isUncommitted = isSentenceUncommitted;
         const isWordSel = wordIndex !== -1 && isWordSelected(wordIndex);
         
         // Check if between two selected words (for separator highlighting)
@@ -484,7 +572,10 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
             const char = token.text[i];
             const isCharSelected = isSeparatorBetweenSelectedWords || 
               isCharInSelectedSentences(ast, charPos, sentenceSelection);
-            const charClasses = isCharSelected ? "selected" : "";
+            const charClasses = [
+              isCharSelected ? "selected" : "",
+              isUncommitted ? "uncommitted" : "",
+            ].filter(Boolean).join(' ');
             
             if (cursorPosition === charPos) {
               elements.push(

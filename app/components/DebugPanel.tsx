@@ -12,6 +12,7 @@ interface SentenceInfo {
   index: number;
   text: string;
   range: [number, number];
+  committed: boolean;
   tokens: TokenInfo[];
 }
 
@@ -19,6 +20,7 @@ interface ASTInfo {
   sentences: SentenceInfo[];
   wordCount: number;
   sentenceCount: number;
+  committedCount: number;
 }
 
 interface DebugData {
@@ -37,13 +39,13 @@ const ASTView = ({ ast, cursorPosition }: { ast: ASTInfo; cursorPosition: number
   return (
     <div className="ast-view">
       <div className="ast-header">
-        AST: {ast.sentenceCount} sentence{ast.sentenceCount !== 1 ? 's' : ''}, {ast.wordCount} word{ast.wordCount !== 1 ? 's' : ''}
+        AST: {ast.sentenceCount} sentence{ast.sentenceCount !== 1 ? 's' : ''}, {ast.wordCount} word{ast.wordCount !== 1 ? 's' : ''} ({ast.committedCount} committed)
       </div>
       <div className="ast-sentences">
         {ast.sentences.map((sentence) => (
-          <div key={sentence.index} className="ast-sentence">
+          <div key={sentence.index} className={`ast-sentence ${sentence.committed ? 'ast-sentence-committed' : 'ast-sentence-uncommitted'}`}>
             <div className="ast-sentence-header">
-              <span className="ast-sentence-index">S{sentence.index}</span>
+              <span className="ast-sentence-index">{sentence.committed ? '✓' : '○'} S{sentence.index}</span>
               <span className="ast-range">[{sentence.range[0]}:{sentence.range[1]}]</span>
             </div>
             <div className="ast-tokens">
@@ -125,6 +127,10 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
           <span className="debug-label">Move Sentence:</span>
           <button onClick={() => simulateKey("ArrowUp")}>↑</button>
           <button onClick={() => simulateKey("ArrowDown")}>↓</button>
+        </div>
+        <div className="debug-controls-row">
+          <span className="debug-label">Commit:</span>
+          <button onClick={() => simulateKey("Enter", { metaKey: true })}>⌘↵</button>
         </div>
         <div className="debug-controls-row">
           <span className="debug-label">Other:</span>
