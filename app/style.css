@@ -111,3 +111,101 @@
   background-color: #9084ec;
   color: #1c1a2c;
 }
+
+/* Debug State */
+.debug-state {
+  min-width: 180px;
+}
+
+.debug-state-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.5;
+  margin-bottom: 8px;
+}
+
+.debug-state-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.debug-state-label {
+  opacity: 0.6;
+}
+
+/* AST View */
+.ast-view {
+  flex: 1;
+  overflow: auto;
+  max-height: 200px;
+}
+
+.ast-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.5;
+  margin-bottom: 8px;
+}
+
+.ast-sentences {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ast-sentence {
+  background-color: #2d2a45;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.ast-sentence-header {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 11px;
+}
+
+.ast-sentence-index {
+  background-color: #9084ec;
+  color: #1c1a2c;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.ast-range {
+  opacity: 0.5;
+}
+
+.ast-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.ast-token {
+  padding: 2px 4px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.ast-token-word {
+  background-color: #3d5a80;
+  color: #e0fbfc;
+}
+
+.ast-token-separator {
+  background-color: #3d3a55;
+  color: #9084ec;
+  opacity: 0.8;
+}
+
+.ast-token-cursor {
+  outline: 2px solid #ddd8ff;
+  outline-offset: 1px;
+}

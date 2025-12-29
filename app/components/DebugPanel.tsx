@@ -2,9 +2,70 @@ import React from "react";
 
 import { useVirtualKeyboard, VirtualKeyEvent } from "./VirtualKeyboard";
 
-interface DebugPanelProps {
-  data: Record<string, unknown> | null;
+interface TokenInfo {
+  type: 'word' | 'separator';
+  text: string;
+  range: [number, number];
 }
+
+interface SentenceInfo {
+  index: number;
+  text: string;
+  range: [number, number];
+  tokens: TokenInfo[];
+}
+
+interface ASTInfo {
+  sentences: SentenceInfo[];
+  wordCount: number;
+  sentenceCount: number;
+}
+
+interface DebugData {
+  source: string;
+  cursorPosition: number;
+  wordSelection: { start: number; end: number; direction: string } | null;
+  sentenceSelection: { start: number; end: number; direction: string } | null;
+  ast: ASTInfo;
+}
+
+interface DebugPanelProps {
+  data: DebugData | null;
+}
+
+const ASTView = ({ ast, cursorPosition }: { ast: ASTInfo; cursorPosition: number }) => {
+  return (
+    <div className="ast-view">
+      <div className="ast-header">
+        AST: {ast.sentenceCount} sentence{ast.sentenceCount !== 1 ? 's' : ''}, {ast.wordCount} word{ast.wordCount !== 1 ? 's' : ''}
+      </div>
+      <div className="ast-sentences">
+        {ast.sentences.map((sentence) => (
+          <div key={sentence.index} className="ast-sentence">
+            <div className="ast-sentence-header">
+              <span className="ast-sentence-index">S{sentence.index}</span>
+              <span className="ast-range">[{sentence.range[0]}:{sentence.range[1]}]</span>
+            </div>
+            <div className="ast-tokens">
+              {sentence.tokens.map((token, i) => {
+                const isAtCursor = cursorPosition >= token.range[0] && cursorPosition < token.range[1];
+                return (
+                  <span
+                    key={i}
+                    className={`ast-token ast-token-${token.type}${isAtCursor ? ' ast-token-cursor' : ''}`}
+                    title={`${token.type} [${token.range[0]}:${token.range[1]}]`}
+                  >
+                    {token.text.replace(/\n/g, '↵').replace(/ /g, '·')}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export const DebugPanel = ({ data }: DebugPanelProps) => {
   const { emit } = useVirtualKeyboard();
@@ -13,9 +74,27 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
     emit({ key, ...modifiers });
   };
 
+  const stateInfo = data ? {
+    cursor: data.cursorPosition,
+    wordSel: data.wordSelection ? `[${data.wordSelection.start}→${data.wordSelection.end}] ${data.wordSelection.direction}` : null,
+    sentenceSel: data.sentenceSelection ? `[${data.sentenceSelection.start}→${data.sentenceSelection.end}] ${data.sentenceSelection.direction}` : null,
+  } : null;
+
   return (
     <div className="debug-container">
-      <pre>{data ? JSON.stringify(data, null, 2) : "No debug data yet"}</pre>
+      <div className="debug-state">
+        <div className="debug-state-header">State</div>
+        {stateInfo && (
+          <div className="debug-state-items">
+            <div><span className="debug-state-label">cursor:</span> {stateInfo.cursor}</div>
+            <div><span className="debug-state-label">wordSel:</span> {stateInfo.wordSel ?? '—'}</div>
+            <div><span className="debug-state-label">sentenceSel:</span> {stateInfo.sentenceSel ?? '—'}</div>
+          </div>
+        )}
+      </div>
+      
+      {data?.ast && <ASTView ast={data.ast} cursorPosition={data.cursorPosition} />}
+      
       <div className="debug-controls">
         <div className="debug-controls-row">
           <span className="debug-label">Cursor:</span>
