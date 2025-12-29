@@ -16,7 +16,7 @@ interface EditorProps {
   initialText?: string;
 }
 
-const WORD_BOUNDARY = /[ ,;.?!\n]/;
+const WORD_BOUNDARY = /[ ,;.?!\n—()]/;
 const SENTENCE_END = /[.?!]/;
 
 // Find next/previous word boundary for cursor movement
@@ -232,7 +232,120 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         setCursorPosition(lineEnd);
       }
 
-      if (event.key === "Escape" || event.key === "ArrowDown") {
+      if (event.key === "Escape") {
+        clearSelections();
+      }
+
+      // Sentence reordering: ArrowUp/ArrowDown when sentence is selected
+      if (event.key === "ArrowUp" && sentenceSelectionRef.current) {
+        const selection = sentenceSelectionRef.current;
+        const minIdx = Math.min(selection.start, selection.end);
+        const maxIdx = Math.max(selection.start, selection.end);
+        
+        // Can't move up if already at the top
+        if (minIdx > 0) {
+          const sentences = currentAst.sentences;
+          const prevSentence = sentences[minIdx - 1];
+          const firstSelected = sentences[minIdx];
+          const lastSelected = sentences[maxIdx];
+          const afterSelected = sentences[maxIdx + 1];
+          
+          const currentText = textRef.current;
+          
+          // Extract the actual sentence texts
+          const prevSentenceText = currentText.slice(prevSentence.charStart, prevSentence.charEnd);
+          const selectedSentencesText = currentText.slice(firstSelected.charStart, lastSelected.charEnd);
+          
+          // Get the separator between prev and selected (preserve newlines)
+          const sepBetweenPrevAndSelected = currentText.slice(prevSentence.charEnd, firstSelected.charStart) || " ";
+          // Get the separator after selected (before next sentence or end)
+          const sepAfterSelected = afterSelected 
+            ? currentText.slice(lastSelected.charEnd, afterSelected.charStart)
+            : "";
+          
+          // Everything before the prev sentence
+          const before = currentText.slice(0, prevSentence.charStart);
+          // Everything after (starting from next sentence)
+          const after = afterSelected ? currentText.slice(afterSelected.charStart) : "";
+          
+          // Rebuild: [before] + [selected] + [sep1] + [prev] + [sep2] + [after]
+          let newText = before + selectedSentencesText + sepBetweenPrevAndSelected + prevSentenceText;
+          if (after.length > 0) {
+            newText += sepAfterSelected + after;
+          }
+          
+          setText(newText);
+          
+          // Update selection to follow the moved sentence
+          const newMinIdx = minIdx - 1;
+          const newMaxIdx = maxIdx - 1;
+          setSentenceSelection({
+            ...selection,
+            start: selection.direction === 'right' ? newMinIdx : newMaxIdx,
+            end: selection.direction === 'right' ? newMaxIdx : newMinIdx,
+          });
+          
+          // Move cursor to start of moved sentence
+          cursorRef.current = before.length;
+          setCursorPosition(before.length);
+        }
+      }
+      
+      if (event.key === "ArrowDown" && sentenceSelectionRef.current) {
+        const selection = sentenceSelectionRef.current;
+        const minIdx = Math.min(selection.start, selection.end);
+        const maxIdx = Math.max(selection.start, selection.end);
+        
+        // Can't move down if already at the bottom
+        if (maxIdx < currentAst.sentences.length - 1) {
+          const sentences = currentAst.sentences;
+          const firstSelected = sentences[minIdx];
+          const lastSelected = sentences[maxIdx];
+          const nextSentence = sentences[maxIdx + 1];
+          const afterNext = sentences[maxIdx + 2];
+          
+          const currentText = textRef.current;
+          
+          // Extract the actual sentence texts
+          const selectedSentencesText = currentText.slice(firstSelected.charStart, lastSelected.charEnd);
+          const nextSentenceText = currentText.slice(nextSentence.charStart, nextSentence.charEnd);
+          
+          // Get the separator between selected and next (preserve newlines)
+          const sepBetweenSelectedAndNext = currentText.slice(lastSelected.charEnd, nextSentence.charStart) || " ";
+          // Get the separator after next (before following sentence or end)
+          const sepAfterNext = afterNext
+            ? currentText.slice(nextSentence.charEnd, afterNext.charStart)
+            : "";
+          
+          // Everything before the selected sentences
+          const before = currentText.slice(0, firstSelected.charStart);
+          // Everything after (starting from sentence after next)
+          const after = afterNext ? currentText.slice(afterNext.charStart) : "";
+          
+          // Rebuild: [before] + [next] + [sep1] + [selected] + [sep2] + [after]
+          let newText = before + nextSentenceText + sepBetweenSelectedAndNext + selectedSentencesText;
+          if (after.length > 0) {
+            newText += sepAfterNext + after;
+          }
+          
+          setText(newText);
+          
+          // Update selection to follow the moved sentence
+          const newMinIdx = minIdx + 1;
+          const newMaxIdx = maxIdx + 1;
+          setSentenceSelection({
+            ...selection,
+            start: selection.direction === 'right' ? newMinIdx : newMaxIdx,
+            end: selection.direction === 'right' ? newMaxIdx : newMinIdx,
+          });
+          
+          // Move cursor to new position of moved sentence
+          const newPos = before.length + nextSentenceText.length + sepBetweenSelectedAndNext.length;
+          cursorRef.current = newPos;
+          setCursorPosition(newPos);
+        }
+      } else if (event.key === "ArrowDown" && !sentenceSelectionRef.current) {
+        // Only clear selections if no sentence is selected (original behavior)
         clearSelections();
       }
 

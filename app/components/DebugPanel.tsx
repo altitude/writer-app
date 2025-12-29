@@ -122,6 +122,11 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
           <button onClick={() => simulateKey("ArrowRight", { shiftKey: true, metaKey: true })}>⇧⌘→</button>
         </div>
         <div className="debug-controls-row">
+          <span className="debug-label">Move Sentence:</span>
+          <button onClick={() => simulateKey("ArrowUp")}>↑</button>
+          <button onClick={() => simulateKey("ArrowDown")}>↓</button>
+        </div>
+        <div className="debug-controls-row">
           <span className="debug-label">Other:</span>
           <button onClick={() => simulateKey("Escape")}>Esc</button>
           <button onClick={() => simulateKey("Backspace")}>⌫</button>

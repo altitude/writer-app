@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+body {
+  background-color: #545455;
+}
+
 .root-container {
   width: 720px;
   height: 380px;

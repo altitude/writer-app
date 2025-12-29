@@ -29,7 +29,7 @@ export interface DocumentAST {
   words: WordToken[];
 }
 
-const WORD_SEPARATORS = /^[ ,;.?!\n]+$/;
+const WORD_SEPARATORS = /^[ ,;.?!\n—()]+$/;
 const SENTENCE_END = /[.?!]/;
 
 /**
@@ -47,7 +47,7 @@ export function parseDocument(text: string): DocumentAST {
  * Tokenize text into words and separators
  */
 function tokenize(text: string): Token[] {
-  const parts = text.split(/([ ,;.?!\n]+)/);
+  const parts = text.split(/([ ,;.?!\n—()]+)/);
   const tokens: Token[] = [];
   let charIndex = 0;
   
