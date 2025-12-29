@@ -18,34 +18,76 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
 
   const [wordSelection, setWordSelection] = useState(null as { start: number; end: number } | null);
 
+  // Get the word index at or near a character position
+  const getWordIndexAtPosition = (pos: number, currentText: string) => {
+    const tokens = currentText.split(/([ ,;.?!\n]+)/);
+    let charIndex = 0;
+    let wordIndex = 0;
+    
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      const tokenEnd = charIndex + token.length;
+      const isWord = !WORD_SEPARATORS.test(token);
+      
+      if (isWord) {
+        if (pos >= charIndex && pos <= tokenEnd) {
+          return wordIndex;
+        }
+        if (pos < charIndex) {
+          // Cursor is before this word, return previous word or this one
+          return Math.max(0, wordIndex);
+        }
+        wordIndex++;
+      }
+      charIndex = tokenEnd;
+    }
+    
+    // Cursor is at the end, return last word
+    return Math.max(0, wordIndex - 1);
+  };
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.shiftKey && event.altKey && event.key === "ArrowRight") {
         // Extend selection to the right
         event.preventDefault();
         setWordSelection((prev) => {
-          if (!prev) return { start: 0, end: 0 };
+          if (!prev) {
+            const wordIdx = getWordIndexAtPosition(cursorRef.current, textRef.current);
+            return { start: wordIdx, end: wordIdx };
+          }
           return { ...prev, end: prev.end + 1 };
         });
       } else if (event.shiftKey && event.altKey && event.key === "ArrowLeft") {
         // Extend selection to the left
         event.preventDefault();
         setWordSelection((prev) => {
-          if (!prev) return { start: 0, end: 0 };
+          if (!prev) {
+            const wordIdx = getWordIndexAtPosition(cursorRef.current, textRef.current);
+            return { start: wordIdx, end: wordIdx };
+          }
           return { ...prev, end: prev.end - 1 };
         });
       } else if (event.altKey && event.key === "ArrowRight") {
         // Move single word selection right
         event.preventDefault();
         setWordSelection((prev) => {
-          const next = prev ? prev.end + 1 : 0;
+          if (!prev) {
+            const wordIdx = getWordIndexAtPosition(cursorRef.current, textRef.current);
+            return { start: wordIdx, end: wordIdx };
+          }
+          const next = prev.end + 1;
           return { start: next, end: next };
         });
       } else if (event.altKey && event.key === "ArrowLeft") {
         // Move single word selection left
         event.preventDefault();
         setWordSelection((prev) => {
-          const next = prev ? prev.end - 1 : 0;
+          if (!prev) {
+            const wordIdx = getWordIndexAtPosition(cursorRef.current, textRef.current);
+            return { start: wordIdx, end: wordIdx };
+          }
+          const next = prev.end - 1;
           return { start: next, end: next };
         });
       } else if (event.key === "ArrowRight") {
