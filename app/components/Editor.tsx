@@ -14,6 +14,7 @@ import { useVirtualKeyboard, VirtualKeyEvent } from "./VirtualKeyboard";
 
 interface EditorProps {
   initialText?: string;
+  initialCommittedSentences?: number[];
 }
 
 interface HistoryState {
@@ -187,7 +188,7 @@ const moveCursorVertically = (pos: number, text: string, direction: 1 | -1): num
   }
 };
 
-export const Editor = ({ initialText = "" }: EditorProps) => {
+export const Editor = ({ initialText = "", initialCommittedSentences = [] }: EditorProps) => {
   const [text, setText] = useState(initialText);
   const textRef = useRef(text);
   textRef.current = text;
@@ -210,7 +211,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
   sentenceSelectionRef.current = sentenceSelection;
 
   // Track which sentences are committed (by index). Uncommitted sentences are faded.
-  const [committedSentences, setCommittedSentences] = useState<Set<number>>(new Set());
+  const [committedSentences, setCommittedSentences] = useState<Set<number>>(new Set(initialCommittedSentences));
   const committedSentencesRef = useRef(committedSentences);
   committedSentencesRef.current = committedSentences;
 
