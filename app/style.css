@@ -35,7 +35,7 @@ body {
 }
 
 .editor-container pre span.uncommitted {
-  opacity: 0.4;
+  opacity: 0.6;
 }
 
 .editor-container pre .cursor {

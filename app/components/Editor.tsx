@@ -457,25 +457,48 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           }
         }
       } else if (event.key === "Enter" && event.metaKey) {
-        // Cmd+Enter: Commit current sentence or selected sentences
+        // Cmd+Enter: Toggle commit state for current sentence or selected sentences
         const currentSentenceSelection = sentenceSelectionRef.current;
+        const currentCommitted = committedSentencesRef.current;
         
         if (currentSentenceSelection) {
-          // Commit all selected sentences
+          // Toggle all selected sentences
           const minIdx = Math.min(currentSentenceSelection.start, currentSentenceSelection.end);
           const maxIdx = Math.max(currentSentenceSelection.start, currentSentenceSelection.end);
+          
+          // Check if ALL selected sentences are committed
+          let allCommitted = true;
+          for (let i = minIdx; i <= maxIdx; i++) {
+            if (!currentCommitted.has(i)) {
+              allCommitted = false;
+              break;
+            }
+          }
+          
           setCommittedSentences(prev => {
             const next = new Set(prev);
             for (let i = minIdx; i <= maxIdx; i++) {
-              next.add(i);
+              if (allCommitted) {
+                next.delete(i); // Uncommit
+              } else {
+                next.add(i); // Commit
+              }
             }
             return next;
           });
           clearSelections();
         } else {
-          // Commit the sentence at cursor position
+          // Toggle the sentence at cursor position
           const sentenceIdx = getSentenceIndexAtPosition(currentAst, cursorRef.current);
-          setCommittedSentences(prev => new Set(prev).add(sentenceIdx));
+          setCommittedSentences(prev => {
+            const next = new Set(prev);
+            if (next.has(sentenceIdx)) {
+              next.delete(sentenceIdx); // Uncommit
+            } else {
+              next.add(sentenceIdx); // Commit
+            }
+            return next;
+          });
         }
       } else if (event.key === "Enter") {
         clearSelections();
