@@ -68,8 +68,8 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
   const cursorRef = useRef(cursorPosition);
   cursorRef.current = cursorPosition;
 
-  const [wordSelection, setWordSelection] = useState(null as { start: number; end: number } | null);
-  const [sentenceSelection, setSentenceSelection] = useState(null as { start: number; end: number } | null);
+  const [wordSelection, setWordSelection] = useState(null as { start: number; end: number; direction: 'left' | 'right' } | null);
+  const [sentenceSelection, setSentenceSelection] = useState(null as { start: number; end: number; direction: 'left' | 'right' } | null);
 
   // Get sentence boundaries as character positions
   const getSentenceBoundaries = (currentText: string): number[] => {
@@ -124,56 +124,100 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
     return Math.max(0, wordIndex - 1);
   };
 
+  const clearSelections = () => {
+    setWordSelection(null);
+    setSentenceSelection(null);
+  };
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Word selection: Shift + Option + Arrow (select and extend)
       if (event.shiftKey && event.altKey && event.key === "ArrowRight") {
         event.preventDefault();
         setWordSelection((prev) => {
+          const tokens = textRef.current.split(/([ ,;.?!\n]+)/);
+          const wordCount = tokens.filter(t => !WORD_SEPARATORS.test(t)).length;
           if (!prev) {
             const wordIdx = getWordIndexAtPosition(cursorRef.current, textRef.current);
-            return { start: wordIdx, end: wordIdx };
+            // If already at/past last word, nothing to select rightward
+            if (wordIdx >= wordCount - 1 && cursorRef.current >= textRef.current.length) return null;
+            return { start: wordIdx, end: wordIdx, direction: 'right' };
           }
-          return { ...prev, end: prev.end + 1 };
+          const newEnd = prev.end + 1;
+          // If direction was left and we're crossing past start, clear
+          if (prev.direction === 'left' && newEnd > prev.start) return null;
+          // Bounds check - clamp, don't clear
+          if (newEnd >= wordCount) return prev; // Stay at bounds
+          return { ...prev, end: newEnd };
         });
       } else if (event.shiftKey && event.altKey && event.key === "ArrowLeft") {
         event.preventDefault();
         setWordSelection((prev) => {
           if (!prev) {
             const wordIdx = getWordIndexAtPosition(cursorRef.current, textRef.current);
-            return { start: wordIdx, end: wordIdx };
+            // If cursor is at position 0, nothing to select leftward
+            if (cursorRef.current === 0) return null;
+            return { start: wordIdx, end: wordIdx, direction: 'left' };
           }
-          return { ...prev, end: prev.end - 1 };
+          const newEnd = prev.end - 1;
+          // If direction was right and we're crossing past start, clear
+          if (prev.direction === 'right' && newEnd < prev.start) return null;
+          // Bounds check - clamp, don't clear
+          if (newEnd < 0) return prev; // Stay at bounds
+          return { ...prev, end: newEnd };
         });
       }
       // Sentence selection: Cmd + Shift + Arrow (select and extend)
       else if (event.shiftKey && event.metaKey && event.key === "ArrowRight") {
         event.preventDefault();
         setSentenceSelection((prev) => {
+          const boundaries = getSentenceBoundaries(textRef.current);
+          const sentenceCount = boundaries.length - 1;
           if (!prev) {
             const sentenceIdx = getSentenceIndexAtPosition(cursorRef.current, textRef.current);
-            return { start: sentenceIdx, end: sentenceIdx };
+            // If cursor is at/past the end of text, nothing to select rightward
+            if (cursorRef.current >= textRef.current.length) return null;
+            // If already at the last sentence and cursor is past its start, check if there's more
+            if (sentenceIdx >= sentenceCount - 1) {
+              const lastSentenceEnd = boundaries[sentenceCount];
+              if (cursorRef.current >= lastSentenceEnd) return null;
+            }
+            return { start: sentenceIdx, end: sentenceIdx, direction: 'right' };
           }
-          return { ...prev, end: prev.end + 1 };
+          const newEnd = prev.end + 1;
+          // If direction was left and we're crossing past start, clear
+          if (prev.direction === 'left' && newEnd > prev.start) return null;
+          // Bounds check - clamp, don't clear
+          if (newEnd >= sentenceCount) return prev; // Stay at bounds
+          return { ...prev, end: newEnd };
         });
       } else if (event.shiftKey && event.metaKey && event.key === "ArrowLeft") {
         event.preventDefault();
         setSentenceSelection((prev) => {
           if (!prev) {
             const sentenceIdx = getSentenceIndexAtPosition(cursorRef.current, textRef.current);
-            return { start: sentenceIdx, end: sentenceIdx };
+            // If cursor is at position 0, nothing to select leftward
+            if (cursorRef.current === 0) return null;
+            return { start: sentenceIdx, end: sentenceIdx, direction: 'left' };
           }
-          return { ...prev, end: prev.end - 1 };
+          const newEnd = prev.end - 1;
+          // If direction was right and we're crossing past start, clear
+          if (prev.direction === 'right' && newEnd < prev.start) return null;
+          // Bounds check - clamp, don't clear
+          if (newEnd < 0) return prev; // Stay at bounds
+          return { ...prev, end: newEnd };
         });
       }
       // Sentence cursor movement: Cmd + Arrow
       else if (event.metaKey && event.key === "ArrowRight") {
         event.preventDefault();
+        clearSelections();
         const newPos = findSentenceBoundary(cursorRef.current, textRef.current, 1);
         cursorRef.current = newPos;
         setCursorPosition(newPos);
       } else if (event.metaKey && event.key === "ArrowLeft") {
         event.preventDefault();
+        clearSelections();
         const newPos = findSentenceBoundary(cursorRef.current, textRef.current, -1);
         cursorRef.current = newPos;
         setCursorPosition(newPos);
@@ -181,45 +225,46 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
       // Word cursor movement: Option + Arrow
       else if (event.altKey && event.key === "ArrowRight") {
         event.preventDefault();
+        clearSelections();
         const newPos = findWordBoundary(cursorRef.current, textRef.current, 1);
         cursorRef.current = newPos;
         setCursorPosition(newPos);
       } else if (event.altKey && event.key === "ArrowLeft") {
         event.preventDefault();
+        clearSelections();
         const newPos = findWordBoundary(cursorRef.current, textRef.current, -1);
         cursorRef.current = newPos;
         setCursorPosition(newPos);
       }
       // Character cursor movement: Arrow
       else if (event.key === "ArrowRight") {
+        clearSelections();
         setCursorPosition((prev) => Math.min(prev + 1, textRef.current.length));
       } else if (event.key === "ArrowLeft") {
+        clearSelections();
         setCursorPosition((prev) => Math.max(prev - 1, 0));
       }
 
-      if (event.key === "Escape") {
-        setWordSelection(null);
-        setSentenceSelection(null);
-      }
-
-      if (event.key === "ArrowDown") {
-        setWordSelection(null);
-        setSentenceSelection(null);
+      if (event.key === "Escape" || event.key === "ArrowDown") {
+        clearSelections();
       }
 
       if (event.key === "Backspace") {
         if (cursorRef.current > 0) {
+          clearSelections();
           const pos = cursorRef.current;
           setText((prev) => prev.slice(0, pos - 1) + prev.slice(pos));
           cursorRef.current = pos - 1;
           setCursorPosition(pos - 1);
         }
       } else if (event.key === "Enter") {
+        clearSelections();
         const pos = cursorRef.current;
         setText((prev) => prev.slice(0, pos) + "\n" + prev.slice(pos));
         cursorRef.current = pos + 1;
         setCursorPosition(pos + 1);
       } else if (event.key.length === 1) {
+        clearSelections();
         const pos = cursorRef.current;
         setText((prev) => prev.slice(0, pos) + event.key + prev.slice(pos));
         cursorRef.current = pos + 1;
