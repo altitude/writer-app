@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import { useDebug } from "./DebugContext";
+import { useVirtualKeyboard, VirtualKeyEvent } from "./VirtualKeyboard";
 
 interface EditorProps {
   initialText?: string;
@@ -70,8 +71,15 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
   cursorRef.current = cursorPosition;
 
   const [wordSelection, setWordSelection] = useState(null as { start: number; end: number; direction: 'left' | 'right' } | null);
+  const wordSelectionRef = useRef(wordSelection);
+  wordSelectionRef.current = wordSelection;
+
   const [sentenceSelection, setSentenceSelection] = useState(null as { start: number; end: number; direction: 'left' | 'right' } | null);
+  const sentenceSelectionRef = useRef(sentenceSelection);
+  sentenceSelectionRef.current = sentenceSelection;
+
   const { setData: setDebugData } = useDebug();
+  const { subscribe } = useVirtualKeyboard();
 
   // Get sentence boundaries as character positions
   const getSentenceBoundaries = (currentText: string): number[] => {
@@ -131,11 +139,50 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
     setSentenceSelection(null);
   };
 
+  // Get character range for a word selection
+  const getWordSelectionRange = (selection: { start: number; end: number }, currentText: string): { start: number; end: number } => {
+    const tokens = currentText.split(/([ ,;.?!\n]+)/);
+    const minIdx = Math.min(selection.start, selection.end);
+    const maxIdx = Math.max(selection.start, selection.end);
+    
+    let charIndex = 0;
+    let wordIndex = 0;
+    let rangeStart = 0;
+    let rangeEnd = 0;
+    
+    for (const token of tokens) {
+      const isWord = !WORD_SEPARATORS.test(token);
+      if (isWord) {
+        if (wordIndex === minIdx) {
+          rangeStart = charIndex;
+        }
+        if (wordIndex === maxIdx) {
+          rangeEnd = charIndex + token.length;
+        }
+        wordIndex++;
+      }
+      charIndex += token.length;
+    }
+    
+    return { start: rangeStart, end: rangeEnd };
+  };
+
+  // Get character range for a sentence selection
+  const getSentenceSelectionRange = (selection: { start: number; end: number }, currentText: string): { start: number; end: number } => {
+    const boundaries = getSentenceBoundaries(currentText);
+    const minIdx = Math.min(selection.start, selection.end);
+    const maxIdx = Math.max(selection.start, selection.end);
+    
+    return {
+      start: boundaries[minIdx],
+      end: boundaries[maxIdx + 1] ?? currentText.length,
+    };
+  };
+
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const handleKeyDown = (event: VirtualKeyEvent) => {
       // Word selection: Shift + Option + Arrow (select and extend)
       if (event.shiftKey && event.altKey && event.key === "ArrowRight") {
-        event.preventDefault();
         setWordSelection((prev) => {
           const tokens = textRef.current.split(/([ ,;.?!\n]+)/);
           const wordCount = tokens.filter(t => !WORD_SEPARATORS.test(t)).length;
@@ -153,7 +200,6 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           return { ...prev, end: newEnd };
         });
       } else if (event.shiftKey && event.altKey && event.key === "ArrowLeft") {
-        event.preventDefault();
         setWordSelection((prev) => {
           if (!prev) {
             const wordIdx = getWordIndexAtPosition(cursorRef.current, textRef.current);
@@ -171,7 +217,6 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
       }
       // Sentence selection: Cmd + Shift + Arrow (select and extend)
       else if (event.shiftKey && event.metaKey && event.key === "ArrowRight") {
-        event.preventDefault();
         setSentenceSelection((prev) => {
           const boundaries = getSentenceBoundaries(textRef.current);
           const sentenceCount = boundaries.length - 1;
@@ -194,7 +239,6 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           return { ...prev, end: newEnd };
         });
       } else if (event.shiftKey && event.metaKey && event.key === "ArrowLeft") {
-        event.preventDefault();
         setSentenceSelection((prev) => {
           if (!prev) {
             const sentenceIdx = getSentenceIndexAtPosition(cursorRef.current, textRef.current);
@@ -212,13 +256,11 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
       }
       // Sentence cursor movement: Cmd + Arrow
       else if (event.metaKey && event.key === "ArrowRight") {
-        event.preventDefault();
         clearSelections();
         const newPos = findSentenceBoundary(cursorRef.current, textRef.current, 1);
         cursorRef.current = newPos;
         setCursorPosition(newPos);
       } else if (event.metaKey && event.key === "ArrowLeft") {
-        event.preventDefault();
         clearSelections();
         const newPos = findSentenceBoundary(cursorRef.current, textRef.current, -1);
         cursorRef.current = newPos;
@@ -226,13 +268,11 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
       }
       // Word cursor movement: Option + Arrow
       else if (event.altKey && event.key === "ArrowRight") {
-        event.preventDefault();
         clearSelections();
         const newPos = findWordBoundary(cursorRef.current, textRef.current, 1);
         cursorRef.current = newPos;
         setCursorPosition(newPos);
       } else if (event.altKey && event.key === "ArrowLeft") {
-        event.preventDefault();
         clearSelections();
         const newPos = findWordBoundary(cursorRef.current, textRef.current, -1);
         cursorRef.current = newPos;
@@ -249,7 +289,6 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
 
       // Line navigation: Ctrl+A (beginning) and Ctrl+E (end)
       if (event.ctrlKey && event.key === "a") {
-        event.preventDefault();
         clearSelections();
         const text = textRef.current;
         const pos = cursorRef.current;
@@ -261,7 +300,6 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         cursorRef.current = lineStart;
         setCursorPosition(lineStart);
       } else if (event.ctrlKey && event.key === "e") {
-        event.preventDefault();
         clearSelections();
         const text = textRef.current;
         const pos = cursorRef.current;
@@ -279,20 +317,36 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
       }
 
       if (event.key === "Backspace") {
-        if (cursorRef.current > 0) {
+        const currentText = textRef.current;
+        const currentSentenceSelection = sentenceSelectionRef.current;
+        const currentWordSelection = wordSelectionRef.current;
+        
+        // Check if there's a selection to delete
+        if (currentSentenceSelection) {
+          const range = getSentenceSelectionRange(currentSentenceSelection, currentText);
+          setText((prev) => prev.slice(0, range.start) + prev.slice(range.end));
+          cursorRef.current = range.start;
+          setCursorPosition(range.start);
           clearSelections();
+        } else if (currentWordSelection) {
+          const range = getWordSelectionRange(currentWordSelection, currentText);
+          setText((prev) => prev.slice(0, range.start) + prev.slice(range.end));
+          cursorRef.current = range.start;
+          setCursorPosition(range.start);
+          clearSelections();
+        } else if (cursorRef.current > 0) {
+          // No selection - delete based on modifiers
           const pos = cursorRef.current;
-          const text = textRef.current;
           
           if (event.metaKey) {
             // Cmd + Backspace: Delete to beginning of sentence
-            const sentenceStart = findSentenceBoundary(pos, text, -1);
+            const sentenceStart = findSentenceBoundary(pos, currentText, -1);
             setText((prev) => prev.slice(0, sentenceStart) + prev.slice(pos));
             cursorRef.current = sentenceStart;
             setCursorPosition(sentenceStart);
           } else if (event.altKey) {
             // Option + Backspace: Delete word backwards
-            const newPos = findWordBoundary(pos, text, -1);
+            const newPos = findWordBoundary(pos, currentText, -1);
             setText((prev) => prev.slice(0, newPos) + prev.slice(pos));
             cursorRef.current = newPos;
             setCursorPosition(newPos);
@@ -318,12 +372,8 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+    return subscribe(handleKeyDown);
+  }, [subscribe]);
 
   useEffect(() => {
     setDebugData({

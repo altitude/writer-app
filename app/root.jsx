@@ -5,6 +5,7 @@ import {
   Scripts,
 } from "@remix-run/react";
 import { DebugProvider } from "./components/DebugContext";
+import { VirtualKeyboardProvider, KeyboardBridge } from "./components/VirtualKeyboard";
 import "./style.css";
 
 export default function App() {
@@ -21,12 +22,15 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <DebugProvider>
-          <main>
-            <Outlet />
-          </main>
-          <Scripts />
-        </DebugProvider>
+        <VirtualKeyboardProvider>
+          <KeyboardBridge />
+          <DebugProvider>
+            <main>
+              <Outlet />
+            </main>
+            <Scripts />
+          </DebugProvider>
+        </VirtualKeyboardProvider>
       </body>
     </html>
   );
