@@ -4,6 +4,7 @@ import {
   Outlet,
   Scripts,
 } from "@remix-run/react";
+import { DebugProvider } from "./components/DebugContext";
 import "./style.css";
 
 export default function App() {
@@ -20,10 +21,12 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <main>
-          <Outlet />
-        </main>
-        <Scripts />
+        <DebugProvider>
+          <main>
+            <Outlet />
+          </main>
+          <Scripts />
+        </DebugProvider>
       </body>
     </html>
   );

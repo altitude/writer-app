@@ -6,7 +6,7 @@ const introText = `This is a simple app to help you write your stories.\nYou can
 export default function Index() {
   return (
     <div className="root-container">
-      <Editor initialText={introText} debug={true} />
+      <Editor initialText={introText} />
     </div>
   );
 }

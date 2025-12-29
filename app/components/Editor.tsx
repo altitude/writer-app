@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 
+import { useDebug } from "./DebugContext";
+
 interface EditorProps {
   initialText?: string;
-  debug?: boolean;
 }
 
 const WORD_SEPARATORS = /^[ ,;.?!\n]+$/;
@@ -59,7 +60,7 @@ const findSentenceBoundary = (pos: number, text: string, direction: 1 | -1): num
   }
 };
 
-export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
+export const Editor = ({ initialText = "" }: EditorProps) => {
   const [text, setText] = useState(initialText);
   const textRef = useRef(text);
   textRef.current = text;
@@ -70,13 +71,14 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
 
   const [wordSelection, setWordSelection] = useState(null as { start: number; end: number; direction: 'left' | 'right' } | null);
   const [sentenceSelection, setSentenceSelection] = useState(null as { start: number; end: number; direction: 'left' | 'right' } | null);
+  const { setData: setDebugData } = useDebug();
 
   // Get sentence boundaries as character positions
   const getSentenceBoundaries = (currentText: string): number[] => {
     const boundaries = [0];
     for (let i = 0; i < currentText.length; i++) {
       if (SENTENCE_END.test(currentText[i]) && (i + 1 >= currentText.length || /[\s\n]/.test(currentText[i + 1]))) {
-        boundaries.push(i + 2);
+        boundaries.push(i + 1); // End right after punctuation, don't include trailing space
       }
     }
     if (boundaries[boundaries.length - 1] < currentText.length) {
@@ -323,6 +325,16 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
     };
   }, []);
 
+  useEffect(() => {
+    setDebugData({
+      source: "Editor",
+      cursorPosition,
+      wordSelection,
+      sentenceSelection,
+      textLength: text.length,
+    });
+  }, [cursorPosition, sentenceSelection, setDebugData, text.length, wordSelection]);
+
   const isWordSelected = (index: number) => {
     if (!wordSelection) return false;
     const min = Math.min(wordSelection.start, wordSelection.end);
@@ -401,27 +413,51 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
       const wordIndex = wordToToken.indexOf(tokenIndex);
 
       const isUncommitted = !isSeparator && wordIndex === lastWordIndex && !isLastWordCommitted;
-      const isSelected = isTokenWordSelected(tokenIndex) || isCharInSelectedSentence(tokenStart);
-      const classes = [
-        isSelected ? "selected" : "",
-        isUncommitted ? "uncommitted" : "",
-      ].filter(Boolean).join(' ');
+      const isWordSel = isTokenWordSelected(tokenIndex);
 
-      // Check if cursor is within this token
-      if (cursorPosition >= tokenStart && cursorPosition < tokenEnd) {
-        const cursorOffset = cursorPosition - tokenStart;
-        const beforeCursor = token.slice(0, cursorOffset);
-        const afterCursor = token.slice(cursorOffset);
-
-        elements.push(
-          <span key={tokenIndex} className={classes}>
-            {beforeCursor}
-            <span className="cursor"></span>
-            {afterCursor}
-          </span>
-        );
+      // For separator tokens with sentence selection, render character-by-character
+      // so each character can have its own selection state
+      if (isSeparator && sentenceSelection) {
+        for (let i = 0; i < token.length; i++) {
+          const charPos = tokenStart + i;
+          const char = token[i];
+          const isCharSelected = isWordSel || isCharInSelectedSentence(charPos);
+          const charClasses = isCharSelected ? "selected" : "";
+          
+          if (cursorPosition === charPos) {
+            elements.push(
+              <span key={`${tokenIndex}-${i}`} className={charClasses}>
+                <span className="cursor"></span>
+                {char}
+              </span>
+            );
+          } else {
+            elements.push(<span key={`${tokenIndex}-${i}`} className={charClasses}>{char}</span>);
+          }
+        }
       } else {
-        elements.push(<span key={tokenIndex} className={classes}>{token}</span>);
+        const isSelected = isWordSel || isCharInSelectedSentence(tokenStart);
+        const classes = [
+          isSelected ? "selected" : "",
+          isUncommitted ? "uncommitted" : "",
+        ].filter(Boolean).join(' ');
+
+        // Check if cursor is within this token
+        if (cursorPosition >= tokenStart && cursorPosition < tokenEnd) {
+          const cursorOffset = cursorPosition - tokenStart;
+          const beforeCursor = token.slice(0, cursorOffset);
+          const afterCursor = token.slice(cursorOffset);
+
+          elements.push(
+            <span key={tokenIndex} className={classes}>
+              {beforeCursor}
+              <span className="cursor"></span>
+              {afterCursor}
+            </span>
+          );
+        } else {
+          elements.push(<span key={tokenIndex} className={classes}>{token}</span>);
+        }
       }
 
       charIndex = tokenEnd;
@@ -436,20 +472,9 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
   };
 
   return (
-    <>
-      <div className="editor-container">
-        <pre>{renderText(text)}</pre>
-      </div>
-      {debug && (
-        <div className="debug-container">
-          <pre>{JSON.stringify({
-            cursorPosition,
-            wordSelection,
-            sentenceSelection,
-          })}</pre>
-        </div>
-      )}
-    </>
+    <div className="editor-container">
+      <pre>{renderText(text)}</pre>
+    </div>
   );
 };
 
