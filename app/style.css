@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 .root-container {
-  width: 800px;
-  height: 400px;
+  width: 720px;
+  height: 380px;
   background-color: #1c1a2c;
   color: #ddd8ff;
   font-family: monospace;
@@ -26,6 +26,20 @@
 
 .root-container pre span.uncommitted {
   opacity: 0.4;
+}
+
+.root-container pre .cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background-color: #ddd8ff;
+  vertical-align: text-bottom;
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 .debug-container {
