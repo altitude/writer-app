@@ -24,6 +24,10 @@
   color: #1c1a2c;
 }
 
+.root-container pre span.uncommitted {
+  opacity: 0.4;
+}
+
 .debug-container {
   width: 100vw;
   height: 300px;
