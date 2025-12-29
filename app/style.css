@@ -41,6 +41,7 @@
   background-color: #ddd8ff;
   vertical-align: text-bottom;
   animation: blink 1s step-end infinite;
+  margin-right: -2px;
 }
 
 @keyframes blink {

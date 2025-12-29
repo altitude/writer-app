@@ -245,6 +245,33 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
         setCursorPosition((prev) => Math.max(prev - 1, 0));
       }
 
+      // Line navigation: Ctrl+A (beginning) and Ctrl+E (end)
+      if (event.ctrlKey && event.key === "a") {
+        event.preventDefault();
+        clearSelections();
+        const text = textRef.current;
+        const pos = cursorRef.current;
+        // Find beginning of line (after previous \n or start of text)
+        let lineStart = pos;
+        while (lineStart > 0 && text[lineStart - 1] !== "\n") {
+          lineStart--;
+        }
+        cursorRef.current = lineStart;
+        setCursorPosition(lineStart);
+      } else if (event.ctrlKey && event.key === "e") {
+        event.preventDefault();
+        clearSelections();
+        const text = textRef.current;
+        const pos = cursorRef.current;
+        // Find end of line (before next \n or end of text)
+        let lineEnd = pos;
+        while (lineEnd < text.length && text[lineEnd] !== "\n") {
+          lineEnd++;
+        }
+        cursorRef.current = lineEnd;
+        setCursorPosition(lineEnd);
+      }
+
       if (event.key === "Escape" || event.key === "ArrowDown") {
         clearSelections();
       }
@@ -253,9 +280,26 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
         if (cursorRef.current > 0) {
           clearSelections();
           const pos = cursorRef.current;
-          setText((prev) => prev.slice(0, pos - 1) + prev.slice(pos));
-          cursorRef.current = pos - 1;
-          setCursorPosition(pos - 1);
+          const text = textRef.current;
+          
+          if (event.metaKey) {
+            // Cmd + Backspace: Delete to beginning of sentence
+            const sentenceStart = findSentenceBoundary(pos, text, -1);
+            setText((prev) => prev.slice(0, sentenceStart) + prev.slice(pos));
+            cursorRef.current = sentenceStart;
+            setCursorPosition(sentenceStart);
+          } else if (event.altKey) {
+            // Option + Backspace: Delete word backwards
+            const newPos = findWordBoundary(pos, text, -1);
+            setText((prev) => prev.slice(0, newPos) + prev.slice(pos));
+            cursorRef.current = newPos;
+            setCursorPosition(newPos);
+          } else {
+            // Plain Backspace: Delete single character
+            setText((prev) => prev.slice(0, pos - 1) + prev.slice(pos));
+            cursorRef.current = pos - 1;
+            setCursorPosition(pos - 1);
+          }
         }
       } else if (event.key === "Enter") {
         clearSelections();
@@ -263,7 +307,7 @@ export const Editor = ({ initialText = "", debug = false }: EditorProps) => {
         setText((prev) => prev.slice(0, pos) + "\n" + prev.slice(pos));
         cursorRef.current = pos + 1;
         setCursorPosition(pos + 1);
-      } else if (event.key.length === 1) {
+      } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
         clearSelections();
         const pos = cursorRef.current;
         setText((prev) => prev.slice(0, pos) + event.key + prev.slice(pos));
