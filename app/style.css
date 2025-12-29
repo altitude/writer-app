@@ -35,7 +35,13 @@ body {
 }
 
 .editor-container pre span.uncommitted {
-  opacity: 0.6;
+  opacity: 0.5;
+}
+
+.editor-container pre span.ghost {
+  opacity: 0.4;
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 255, 255, 0.5);
 }
 
 .editor-container pre .cursor {
@@ -228,4 +234,15 @@ body {
 .ast-token-cursor {
   outline: 2px solid #ddd8ff;
   outline-offset: 1px;
+}
+
+.ast-token-ghost {
+  text-decoration: line-through;
+  opacity: 0.5;
+  background-color: #5a3a3a !important;
+  color: #ff9999 !important;
+}
+
+.ast-token-uncommitted {
+  opacity: 0.5;
 }

@@ -68,7 +68,7 @@ function tokenize(text: string): Token[] {
 }
 
 /**
- * Group tokens into sentences based on sentence-ending punctuation
+ * Group tokens into sentences based on sentence-ending punctuation or double newlines
  */
 function buildSentences(tokens: Token[], text: string): Sentence[] {
   const sentences: Sentence[] = [];
@@ -80,34 +80,49 @@ function buildSentences(tokens: Token[], text: string): Sentence[] {
     const token = tokens[i];
     currentTokens.push(token);
     
-    // Check if this token ends a sentence (separator containing .?! followed by space/newline or end)
+    // Check if this token ends a sentence
     if (token.type === 'separator') {
       const endsWithSentenceEnd = SENTENCE_END.test(token.text);
+      const hasDoubleNewline = token.text.includes('\n\n');
       const isEndOfText = i === tokens.length - 1;
       const nextIsSpaceOrNewline = !isEndOfText && (
         token.text.includes(' ') || token.text.includes('\n') || 
         /[\s\n]/.test(token.text.slice(-1))
       );
       
-      if (endsWithSentenceEnd && (isEndOfText || nextIsSpaceOrNewline || token.text.length > 1)) {
-        // Find where the sentence actually ends (after punctuation, before trailing space)
+      // End sentence on: punctuation (.?!) OR double newline (paragraph break)
+      const shouldEndSentence = 
+        (endsWithSentenceEnd && (isEndOfText || nextIsSpaceOrNewline || token.text.length > 1)) ||
+        hasDoubleNewline;
+      
+      if (shouldEndSentence) {
+        // Find where the sentence actually ends
         let sentenceEnd = token.charEnd;
         
-        // If separator has trailing space after punctuation, exclude it
-        const punctMatch = token.text.match(/[.?!]/);
-        if (punctMatch) {
-          const punctIndex = token.text.lastIndexOf(punctMatch[0]);
-          sentenceEnd = token.charStart + punctIndex + 1;
+        if (hasDoubleNewline) {
+          // For double newline, end before the newlines
+          const doubleNewlineIndex = token.text.indexOf('\n\n');
+          sentenceEnd = token.charStart + doubleNewlineIndex;
+        } else if (endsWithSentenceEnd) {
+          // If separator has trailing space after punctuation, exclude it
+          const punctMatch = token.text.match(/[.?!]/);
+          if (punctMatch) {
+            const punctIndex = token.text.lastIndexOf(punctMatch[0]);
+            sentenceEnd = token.charStart + punctIndex + 1;
+          }
         }
         
-        sentences.push({
-          index: sentenceIndex++,
-          tokens: currentTokens,
-          charStart: sentenceStart,
-          charEnd: sentenceEnd,
-        });
+        // Only create sentence if there's actual content
+        if (currentTokens.length > 0 && sentenceEnd > sentenceStart) {
+          sentences.push({
+            index: sentenceIndex++,
+            tokens: currentTokens,
+            charStart: sentenceStart,
+            charEnd: sentenceEnd,
+          });
+        }
         
-        // Start new sentence after the space (if any)
+        // Start new sentence after the separator
         sentenceStart = token.charEnd;
         currentTokens = [];
       }

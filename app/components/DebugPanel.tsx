@@ -23,7 +23,7 @@ interface ASTInfo {
   committedCount: number;
 }
 
-interface UncommittedRange {
+interface GhostRange {
   start: number;
   end: number;
 }
@@ -33,7 +33,7 @@ interface DebugData {
   cursorPosition: number;
   wordSelection: { start: number; end: number; direction: string } | null;
   sentenceSelection: { start: number; end: number; direction: string } | null;
-  uncommittedRanges: UncommittedRange[];
+  ghostRanges: GhostRange[];
   ast: ASTInfo;
 }
 
@@ -41,7 +41,15 @@ interface DebugPanelProps {
   data: DebugData | null;
 }
 
-const ASTView = ({ ast, cursorPosition }: { ast: ASTInfo; cursorPosition: number }) => {
+const ASTView = ({ ast, cursorPosition, ghostRanges }: { 
+  ast: ASTInfo; 
+  cursorPosition: number;
+  ghostRanges: GhostRange[];
+}) => {
+  // Check if a token overlaps with any ghost range
+  const isGhostToken = (tokenRange: [number, number]) =>
+    ghostRanges.some(g => g.start < tokenRange[1] && g.end > tokenRange[0]);
+
   return (
     <div className="ast-view">
       <div className="ast-header">
@@ -57,11 +65,13 @@ const ASTView = ({ ast, cursorPosition }: { ast: ASTInfo; cursorPosition: number
             <div className="ast-tokens">
               {sentence.tokens.map((token, i) => {
                 const isAtCursor = cursorPosition >= token.range[0] && cursorPosition < token.range[1];
+                const isGhost = isGhostToken(token.range);
+                const isUncommitted = !sentence.committed;
                 return (
                   <span
                     key={i}
-                    className={`ast-token ast-token-${token.type}${isAtCursor ? ' ast-token-cursor' : ''}`}
-                    title={`${token.type} [${token.range[0]}:${token.range[1]}]`}
+                    className={`ast-token ast-token-${token.type}${isAtCursor ? ' ast-token-cursor' : ''}${isGhost ? ' ast-token-ghost' : ''}${isUncommitted && !isGhost ? ' ast-token-uncommitted' : ''}`}
+                    title={`${token.type} [${token.range[0]}:${token.range[1]}]${isGhost ? ' (ghost)' : ''}${isUncommitted ? ' (uncommitted)' : ''}`}
                   >
                     {token.text.replace(/\n/g, '↵').replace(/ /g, '·')}
                   </span>
@@ -86,8 +96,8 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
     cursor: data.cursorPosition,
     wordSel: data.wordSelection ? `[${data.wordSelection.start}→${data.wordSelection.end}] ${data.wordSelection.direction}` : null,
     sentenceSel: data.sentenceSelection ? `[${data.sentenceSelection.start}→${data.sentenceSelection.end}] ${data.sentenceSelection.direction}` : null,
-    uncommittedRanges: data.uncommittedRanges?.length > 0 
-      ? data.uncommittedRanges.map(r => `[${r.start}:${r.end}]`).join(', ')
+    ghostRanges: data.ghostRanges?.length > 0 
+      ? data.ghostRanges.map(r => `[${r.start}:${r.end}]`).join(', ')
       : null,
   } : null;
 
@@ -100,14 +110,14 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
             <div><span className="debug-state-label">cursor:</span> {stateInfo.cursor}</div>
             <div><span className="debug-state-label">wordSel:</span> {stateInfo.wordSel ?? '—'}</div>
             <div><span className="debug-state-label">sentenceSel:</span> {stateInfo.sentenceSel ?? '—'}</div>
-            {stateInfo.uncommittedRanges && (
-              <div><span className="debug-state-label">ghost:</span> {stateInfo.uncommittedRanges}</div>
+            {stateInfo.ghostRanges && (
+              <div><span className="debug-state-label">ghost:</span> {stateInfo.ghostRanges}</div>
             )}
           </div>
         )}
       </div>
       
-      {data?.ast && <ASTView ast={data.ast} cursorPosition={data.cursorPosition} />}
+      {data?.ast && <ASTView ast={data.ast} cursorPosition={data.cursorPosition} ghostRanges={data.ghostRanges ?? []} />}
       
       <div className="debug-controls">
         <div className="debug-controls-row">

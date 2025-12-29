@@ -89,7 +89,7 @@ const getLineInfo = (pos: number, text: string) => {
   return { lineStart, lineEnd, column };
 };
 
-// Adjust uncommitted ranges after text insertion/deletion
+// Adjust ghost ranges after text insertion/deletion
 const adjustRanges = (
   ranges: { start: number; end: number }[],
   changePos: number,
@@ -132,8 +132,8 @@ const adjustRanges = (
     .filter((r): r is { start: number; end: number } => r !== null && r.start < r.end);
 };
 
-// Check if a character position is within any uncommitted range
-const isInUncommittedRange = (
+// Check if a character position is within any ghost range (marked for deletion)
+const isInGhostRange = (
   pos: number,
   ranges: { start: number; end: number }[]
 ): boolean => {
@@ -204,10 +204,10 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
   const committedSentencesRef = useRef(committedSentences);
   committedSentencesRef.current = committedSentences;
 
-  // Track uncommitted character ranges (inline "ghost" text from typing over committed selection)
-  const [uncommittedRanges, setUncommittedRanges] = useState<{ start: number; end: number }[]>([]);
-  const uncommittedRangesRef = useRef(uncommittedRanges);
-  uncommittedRangesRef.current = uncommittedRanges;
+  // Track ghost ranges (text marked for deletion from typing over committed selection)
+  const [ghostRanges, setGhostRanges] = useState<{ start: number; end: number }[]>([]);
+  const ghostRangesRef = useRef(ghostRanges);
+  ghostRangesRef.current = ghostRanges;
 
   const { setData: setDebugData } = useDebug();
   const { subscribe } = useVirtualKeyboard();
@@ -398,8 +398,8 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           }
           
           setText(newText);
-          // Clear uncommitted ranges on reorder (positions become invalid)
-          setUncommittedRanges([]);
+          // Clear ghost ranges on reorder (positions become invalid)
+          setGhostRanges([]);
           
           // Update selection to follow the moved sentence
           const newMinIdx = minIdx - 1;
@@ -480,8 +480,8 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           }
           
           setText(newText);
-          // Clear uncommitted ranges on reorder (positions become invalid)
-          setUncommittedRanges([]);
+          // Clear ghost ranges on reorder (positions become invalid)
+          setGhostRanges([]);
           
           // Update selection to follow the moved sentence
           const newMinIdx = minIdx + 1;
@@ -529,7 +529,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         const currentText = textRef.current;
         const currentSentenceSelection = sentenceSelectionRef.current;
         const currentWordSelection = wordSelectionRef.current;
-        const currentUncommittedRanges = uncommittedRangesRef.current;
+        const currentGhostRanges = ghostRangesRef.current;
         
         // Check if there's a selection to delete
         if (currentSentenceSelection) {
@@ -540,7 +540,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           const deleteLength = range.end - range.start;
           
           setText((prev) => prev.slice(0, range.start) + prev.slice(range.end));
-          setUncommittedRanges(adjustRanges(currentUncommittedRanges, range.start, -deleteLength));
+          setGhostRanges(adjustRanges(currentGhostRanges, range.start, -deleteLength));
           cursorRef.current = range.start;
           setCursorPosition(range.start);
           
@@ -565,7 +565,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           const range = getWordSelectionRange(currentAst, currentWordSelection);
           const deleteLength = range.end - range.start;
           setText((prev) => prev.slice(0, range.start) + prev.slice(range.end));
-          setUncommittedRanges(adjustRanges(currentUncommittedRanges, range.start, -deleteLength));
+          setGhostRanges(adjustRanges(currentGhostRanges, range.start, -deleteLength));
           cursorRef.current = range.start;
           setCursorPosition(range.start);
           clearSelections();
@@ -578,7 +578,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
             const sentenceStart = findSentenceBoundary(pos, currentText, -1);
             const deleteLength = pos - sentenceStart;
             setText((prev) => prev.slice(0, sentenceStart) + prev.slice(pos));
-            setUncommittedRanges(adjustRanges(currentUncommittedRanges, sentenceStart, -deleteLength));
+            setGhostRanges(adjustRanges(currentGhostRanges, sentenceStart, -deleteLength));
             cursorRef.current = sentenceStart;
             setCursorPosition(sentenceStart);
           } else if (event.altKey) {
@@ -586,13 +586,13 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
             const newPos = findWordBoundary(pos, currentText, -1);
             const deleteLength = pos - newPos;
             setText((prev) => prev.slice(0, newPos) + prev.slice(pos));
-            setUncommittedRanges(adjustRanges(currentUncommittedRanges, newPos, -deleteLength));
+            setGhostRanges(adjustRanges(currentGhostRanges, newPos, -deleteLength));
             cursorRef.current = newPos;
             setCursorPosition(newPos);
           } else {
             // Plain Backspace: Delete single character
             setText((prev) => prev.slice(0, pos - 1) + prev.slice(pos));
-            setUncommittedRanges(adjustRanges(currentUncommittedRanges, pos - 1, -1));
+            setGhostRanges(adjustRanges(currentGhostRanges, pos - 1, -1));
             cursorRef.current = pos - 1;
             setCursorPosition(pos - 1);
           }
@@ -645,7 +645,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         clearSelections();
         const pos = cursorRef.current;
         setText((prev) => prev.slice(0, pos) + "\n" + prev.slice(pos));
-        setUncommittedRanges(adjustRanges(uncommittedRangesRef.current, pos, 1));
+        setGhostRanges(adjustRanges(ghostRangesRef.current, pos, 1));
         cursorRef.current = pos + 1;
         setCursorPosition(pos + 1);
       } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
@@ -653,7 +653,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         const currentWordSelection = wordSelectionRef.current;
         const currentText = textRef.current;
         const currentCommitted = committedSentencesRef.current;
-        const currentUncommittedRanges = uncommittedRangesRef.current;
+        const currentGhostRanges = ghostRangesRef.current;
         
         // Check if there's a selection
         if (currentSentenceSelection || currentWordSelection) {
@@ -667,7 +667,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           const isCommitted = currentCommitted.has(sentenceIdx);
           
           if (isCommitted) {
-            // Committed sentence: keep old text as uncommitted, insert new text after
+            // Committed sentence: keep old text as ghost (strikethrough), insert new text after
             // Add a space separator between old and new text (space is part of ghost text)
             const insertPos = range.end;
             const spacer = /[a-zA-Z0-9]/.test(event.key) ? " " : "";
@@ -675,11 +675,11 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
             
             setText((prev) => prev.slice(0, insertPos) + newText + prev.slice(insertPos));
             
-            // Mark the old range + spacer as uncommitted
-            const newUncommittedRange = { start: range.start, end: range.end + spacer.length };
-            // Update uncommitted ranges (shift those after insertion point)
-            const adjusted = adjustRanges(currentUncommittedRanges, insertPos, newText.length);
-            setUncommittedRanges([...adjusted, newUncommittedRange]);
+            // Mark the old range + spacer as ghost (for deletion)
+            const newGhostRange = { start: range.start, end: range.end + spacer.length };
+            // Update ghost ranges (shift those after insertion point)
+            const adjusted = adjustRanges(currentGhostRanges, insertPos, newText.length);
+            setGhostRanges([...adjusted, newGhostRange]);
             
             cursorRef.current = insertPos + newText.length;
             setCursorPosition(insertPos + newText.length);
@@ -687,9 +687,9 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
             // Uncommitted sentence: normal replace behavior
             setText((prev) => prev.slice(0, range.start) + event.key + prev.slice(range.end));
             
-            // Update uncommitted ranges
+            // Update ghost ranges
             const delta = 1 - (range.end - range.start);
-            setUncommittedRanges(adjustRanges(currentUncommittedRanges, range.start, delta));
+            setGhostRanges(adjustRanges(currentGhostRanges, range.start, delta));
             
             cursorRef.current = range.start + 1;
             setCursorPosition(range.start + 1);
@@ -699,7 +699,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           // No selection: normal insert
           const pos = cursorRef.current;
           setText((prev) => prev.slice(0, pos) + event.key + prev.slice(pos));
-          setUncommittedRanges(adjustRanges(currentUncommittedRanges, pos, 1));
+          setGhostRanges(adjustRanges(currentGhostRanges, pos, 1));
           cursorRef.current = pos + 1;
           setCursorPosition(pos + 1);
         }
@@ -715,7 +715,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
       cursorPosition,
       wordSelection,
       sentenceSelection,
-      uncommittedRanges,
+      ghostRanges,
       ast: {
         sentences: ast.sentences.map(s => ({
           index: s.index,
@@ -733,7 +733,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         committedCount: committedSentences.size,
       },
     });
-  }, [ast, committedSentences, cursorPosition, sentenceSelection, setDebugData, text, uncommittedRanges, wordSelection]);
+  }, [ast, committedSentences, cursorPosition, sentenceSelection, setDebugData, text, ghostRanges, wordSelection]);
 
   const isWordSelected = (index: number) => {
     if (!wordSelection) return false;
@@ -780,23 +780,23 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           }
         }
 
-        // Check if any part of this token is in an uncommitted range
-        const hasUncommittedRange = uncommittedRanges.some(
+        // Check if any part of this token is in a ghost range
+        const hasGhostRange = ghostRanges.some(
           (r) => r.start < tokenEnd && r.end > tokenStart
         );
 
-        // For separator tokens with sentence selection OR tokens with uncommitted ranges, render character-by-character
-        if ((isSeparator && sentenceSelection) || hasUncommittedRange) {
+        // For separator tokens with sentence selection OR tokens with ghost ranges, render character-by-character
+        if ((isSeparator && sentenceSelection) || hasGhostRange) {
           for (let i = 0; i < token.text.length; i++) {
             const charPos = tokenStart + i;
             const char = token.text[i];
             // Include word selection (isWordSel) in char-by-char rendering
             const isCharSelected = isWordSel || isSeparatorBetweenSelectedWords || 
               (sentenceSelection ? isCharInSelectedSentences(ast, charPos, sentenceSelection) : false);
-            const isCharUncommitted = isUncommitted || isInUncommittedRange(charPos, uncommittedRanges);
+            const isCharGhost = isInGhostRange(charPos, ghostRanges);
             const charClasses = [
               isCharSelected ? "selected" : "",
-              isCharUncommitted ? "uncommitted" : "",
+              isCharGhost ? "ghost" : (isUncommitted ? "uncommitted" : ""),
             ].filter(Boolean).join(' ');
             
             if (cursorPosition === charPos) {
