@@ -23,11 +23,17 @@ interface ASTInfo {
   committedCount: number;
 }
 
+interface UncommittedRange {
+  start: number;
+  end: number;
+}
+
 interface DebugData {
   source: string;
   cursorPosition: number;
   wordSelection: { start: number; end: number; direction: string } | null;
   sentenceSelection: { start: number; end: number; direction: string } | null;
+  uncommittedRanges: UncommittedRange[];
   ast: ASTInfo;
 }
 
@@ -80,6 +86,9 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
     cursor: data.cursorPosition,
     wordSel: data.wordSelection ? `[${data.wordSelection.start}→${data.wordSelection.end}] ${data.wordSelection.direction}` : null,
     sentenceSel: data.sentenceSelection ? `[${data.sentenceSelection.start}→${data.sentenceSelection.end}] ${data.sentenceSelection.direction}` : null,
+    uncommittedRanges: data.uncommittedRanges?.length > 0 
+      ? data.uncommittedRanges.map(r => `[${r.start}:${r.end}]`).join(', ')
+      : null,
   } : null;
 
   return (
@@ -91,6 +100,9 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
             <div><span className="debug-state-label">cursor:</span> {stateInfo.cursor}</div>
             <div><span className="debug-state-label">wordSel:</span> {stateInfo.wordSel ?? '—'}</div>
             <div><span className="debug-state-label">sentenceSel:</span> {stateInfo.sentenceSel ?? '—'}</div>
+            {stateInfo.uncommittedRanges && (
+              <div><span className="debug-state-label">ghost:</span> {stateInfo.uncommittedRanges}</div>
+            )}
           </div>
         )}
       </div>
@@ -102,6 +114,8 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
           <span className="debug-label">Cursor:</span>
           <button onClick={() => simulateKey("ArrowLeft")}>←</button>
           <button onClick={() => simulateKey("ArrowRight")}>→</button>
+          <button onClick={() => simulateKey("ArrowUp")}>↑</button>
+          <button onClick={() => simulateKey("ArrowDown")}>↓</button>
         </div>
         <div className="debug-controls-row">
           <span className="debug-label">Word:</span>
@@ -122,11 +136,6 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
           <span className="debug-label">Select Sentence:</span>
           <button onClick={() => simulateKey("ArrowLeft", { shiftKey: true, metaKey: true })}>⇧⌘←</button>
           <button onClick={() => simulateKey("ArrowRight", { shiftKey: true, metaKey: true })}>⇧⌘→</button>
-        </div>
-        <div className="debug-controls-row">
-          <span className="debug-label">Move Sentence:</span>
-          <button onClick={() => simulateKey("ArrowUp")}>↑</button>
-          <button onClick={() => simulateKey("ArrowDown")}>↓</button>
         </div>
         <div className="debug-controls-row">
           <span className="debug-label">Commit:</span>
