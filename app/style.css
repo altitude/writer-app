@@ -51,6 +51,7 @@
 
 .debug-container {
   width: 100vw;
+  height: 360px;
   margin: auto;
   position: fixed;
   bottom: 0;
@@ -64,6 +65,7 @@
   padding: 20px 100px;
   display: flex;
   gap: 40px;
+  box-sizing: border-box;
 }
 
 .debug-container pre {
@@ -140,7 +142,7 @@
 .ast-view {
   flex: 1;
   overflow: auto;
-  max-height: 200px;
+  min-width: 0; /* Allow flex shrinking */
 }
 
 .ast-header {
