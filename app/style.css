@@ -4,31 +4,37 @@
   width: 720px;
   height: 380px;
   background-color: #1c1a2c;
+  margin: auto;
+  margin-top: 100px;
+}
+
+.editor-container {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
   color: #ddd8ff;
   font-family: monospace;
   font-size: 18px;
   line-height: 1.3;
-  margin: auto;
-  margin-top: 100px;
   text-overflow: clip;
 }
 
-.root-container pre {
+.editor-container pre {
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
 }
 
-.root-container pre span.selected {
+.editor-container pre span.selected {
   background-color: #9084ec;
   color: #1c1a2c;
 }
 
-.root-container pre span.uncommitted {
+.editor-container pre span.uncommitted {
   opacity: 0.4;
 }
 
-.root-container pre .cursor {
+.editor-container pre .cursor {
   display: inline-block;
   width: 2px;
   height: 1.1em;
