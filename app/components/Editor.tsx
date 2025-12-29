@@ -16,6 +16,16 @@ interface EditorProps {
   initialText?: string;
 }
 
+interface HistoryState {
+  text: string;
+  cursorPosition: number;
+  ghostRanges: { start: number; end: number }[];
+  committedSentences: Set<number>;
+}
+
+const BATCH_THRESHOLD = 500; // ms - keystrokes within this window are batched
+const MAX_HISTORY = 100;
+
 const WORD_BOUNDARY = /[ ,;.?!\n—()]/;
 const SENTENCE_END = /[.?!]/;
 
@@ -209,6 +219,15 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
   const ghostRangesRef = useRef(ghostRanges);
   ghostRangesRef.current = ghostRanges;
 
+  // Undo/Redo history stacks
+  const [undoStack, setUndoStack] = useState<HistoryState[]>([]);
+  const undoStackRef = useRef(undoStack);
+  undoStackRef.current = undoStack;
+  const [redoStack, setRedoStack] = useState<HistoryState[]>([]);
+  const redoStackRef = useRef(redoStack);
+  redoStackRef.current = redoStack;
+  const lastEditTimeRef = useRef<number>(0);
+
   const { setData: setDebugData } = useDebug();
   const { subscribe } = useVirtualKeyboard();
 
@@ -217,9 +236,85 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
     setSentenceSelection(null);
   };
 
+  // Save current state to undo history before making changes
+  // force=true starts a new undo group, otherwise batches rapid typing
+  const saveHistory = (force = false) => {
+    const now = Date.now();
+    const shouldBatch = !force && (now - lastEditTimeRef.current) < BATCH_THRESHOLD;
+    lastEditTimeRef.current = now;
+
+    // If batching and we have history, don't create new entry
+    if (shouldBatch && undoStackRef.current.length > 0) return;
+
+    const currentState: HistoryState = {
+      text: textRef.current,
+      cursorPosition: cursorRef.current,
+      ghostRanges: [...ghostRangesRef.current],
+      committedSentences: new Set(committedSentencesRef.current),
+    };
+
+    setUndoStack(prev => [...prev.slice(-(MAX_HISTORY - 1)), currentState]);
+    setRedoStack([]); // Clear redo on new edit
+  };
+
+  // Restore a history state
+  const restoreState = (state: HistoryState) => {
+    setText(state.text);
+    textRef.current = state.text;
+    setCursorPosition(state.cursorPosition);
+    cursorRef.current = state.cursorPosition;
+    setGhostRanges([...state.ghostRanges]);
+    ghostRangesRef.current = [...state.ghostRanges];
+    setCommittedSentences(new Set(state.committedSentences));
+    committedSentencesRef.current = new Set(state.committedSentences);
+    clearSelections();
+  };
+
   useEffect(() => {
     const handleKeyDown = (event: VirtualKeyEvent) => {
       const currentAst = astRef.current;
+      
+      // Undo: Cmd+Z
+      if (event.metaKey && !event.shiftKey && event.key.toLowerCase() === "z") {
+        const currentUndoStack = undoStackRef.current;
+        if (currentUndoStack.length > 0) {
+          // Save current state to redo stack
+          const currentState: HistoryState = {
+            text: textRef.current,
+            cursorPosition: cursorRef.current,
+            ghostRanges: [...ghostRangesRef.current],
+            committedSentences: new Set(committedSentencesRef.current),
+          };
+          setRedoStack(prev => [...prev, currentState]);
+          
+          // Pop from undo stack and restore
+          const prevState = currentUndoStack[currentUndoStack.length - 1];
+          setUndoStack(prev => prev.slice(0, -1));
+          restoreState(prevState);
+        }
+        return;
+      }
+      
+      // Redo: Cmd+Shift+Z
+      if (event.metaKey && event.shiftKey && event.key.toLowerCase() === "z") {
+        const currentRedoStack = redoStackRef.current;
+        if (currentRedoStack.length > 0) {
+          // Save current state to undo stack
+          const currentState: HistoryState = {
+            text: textRef.current,
+            cursorPosition: cursorRef.current,
+            ghostRanges: [...ghostRangesRef.current],
+            committedSentences: new Set(committedSentencesRef.current),
+          };
+          setUndoStack(prev => [...prev, currentState]);
+          
+          // Pop from redo stack and restore
+          const nextState = currentRedoStack[currentRedoStack.length - 1];
+          setRedoStack(prev => prev.slice(0, -1));
+          restoreState(nextState);
+        }
+        return;
+      }
       
       // Word selection: Shift + Option + Arrow (select and extend)
       if (event.shiftKey && event.altKey && event.key === "ArrowRight") {
@@ -367,6 +462,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         
         // Can't move up if already at the top
         if (minIdx > 0) {
+          saveHistory(true); // Force new undo group for sentence reorder
           const sentences = currentAst.sentences;
           const prevSentence = sentences[minIdx - 1];
           const firstSelected = sentences[minIdx];
@@ -449,6 +545,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         
         // Can't move down if already at the bottom
         if (maxIdx < currentAst.sentences.length - 1) {
+          saveHistory(true); // Force new undo group for sentence reorder
           const sentences = currentAst.sentences;
           const firstSelected = sentences[minIdx];
           const lastSelected = sentences[maxIdx];
@@ -526,6 +623,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
       }
 
       if (event.key === "Backspace") {
+        saveHistory(true); // Force new undo group for backspace
         const currentText = textRef.current;
         const currentSentenceSelection = sentenceSelectionRef.current;
         const currentWordSelection = wordSelectionRef.current;
@@ -598,6 +696,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           }
         }
       } else if (event.key === "Enter" && event.metaKey) {
+        saveHistory(true); // Force new undo group for commit toggle
         // Cmd+Enter: Toggle commit state for current sentence or selected sentences
         const currentSentenceSelection = sentenceSelectionRef.current;
         const currentCommitted = committedSentencesRef.current;
@@ -642,6 +741,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
           });
         }
       } else if (event.key === "Enter") {
+        saveHistory(true); // Force new undo group for newline
         clearSelections();
         const pos = cursorRef.current;
         setText((prev) => prev.slice(0, pos) + "\n" + prev.slice(pos));
@@ -649,6 +749,7 @@ export const Editor = ({ initialText = "" }: EditorProps) => {
         cursorRef.current = pos + 1;
         setCursorPosition(pos + 1);
       } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey) {
+        saveHistory(); // Batch rapid typing into single undo group
         const currentSentenceSelection = sentenceSelectionRef.current;
         const currentWordSelection = wordSelectionRef.current;
         const currentText = textRef.current;

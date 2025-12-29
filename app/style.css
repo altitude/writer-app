@@ -177,7 +177,6 @@ body {
 }
 
 .ast-sentence-uncommitted {
-  opacity: 0.5;
   border-left: 2px solid #666;
 }
 
@@ -241,8 +240,4 @@ body {
   opacity: 0.5;
   background-color: #5a3a3a !important;
   color: #ff9999 !important;
-}
-
-.ast-token-uncommitted {
-  opacity: 0.5;
 }
