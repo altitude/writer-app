@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState, useRef } from "react";
-import { Editor, SentenceInput } from "./Editor";
+import { Editor, SentenceInput, GhostRange } from "./Editor";
 import { useDocument } from "./DocumentContext";
 import { useVirtualKeyboard } from "./VirtualKeyboard";
 import { AssemblyView } from "./AssemblyView";
@@ -81,9 +81,9 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
     return subscribe(handleKeyDown);
   }, [subscribe, goToPreviousFragment, goToNextFragment, createFragment, viewMode]);
 
-  const handleContentChange = useCallback((sentences: SentenceInput[]) => {
+  const handleContentChange = useCallback((sentences: SentenceInput[], ghostRanges: GhostRange[]) => {
     if (currentFragment) {
-      updateFragment(currentFragment.id, sentences);
+      updateFragment(currentFragment.id, sentences, ghostRanges);
     }
   }, [currentFragment, updateFragment]);
 
@@ -152,6 +152,7 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
       <Editor
         key={currentFragment.id}
         initialContent={currentFragment.sentences}
+        initialGhostRanges={currentFragment.ghostRanges || []}
         onContentChange={handleContentChange}
         fragmentId={currentFragment.id}
         insertWord={wordToInsert}

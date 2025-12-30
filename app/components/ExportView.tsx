@@ -2,10 +2,54 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useDocument } from "./DocumentContext";
 import { useLibrary } from "./LibraryContext";
 import { useVirtualKeyboard } from "./VirtualKeyboard";
+import { GhostRange, Fragment } from "./types";
 
 interface ExportViewProps {
   onClose: () => void;
 }
+
+// Get committed text from a fragment, excluding ghosted ranges
+const getCommittedTextWithoutGhosts = (fragment: Fragment): string => {
+  const ghostRanges = fragment.ghostRanges || [];
+  const parts: string[] = [];
+  let charPos = 0;
+  
+  for (let i = 0; i < fragment.sentences.length; i++) {
+    const sentence = fragment.sentences[i];
+    const isLast = i === fragment.sentences.length - 1;
+    const sentenceLength = sentence.text.length;
+    const sentenceStart = charPos;
+    
+    if (sentence.committed) {
+      // Get the portion of this sentence that isn't ghosted
+      let sentenceText = sentence.text;
+      
+      // Find ghost ranges that overlap with this sentence and remove them
+      for (const ghost of [...ghostRanges].sort((a, b) => b.start - a.start)) {
+        const overlapStart = Math.max(ghost.start - sentenceStart, 0);
+        const overlapEnd = Math.min(ghost.end - sentenceStart, sentenceLength);
+        
+        if (overlapStart < sentenceLength && overlapEnd > 0 && overlapStart < overlapEnd) {
+          sentenceText = sentenceText.slice(0, overlapStart) + sentenceText.slice(overlapEnd);
+        }
+      }
+      
+      if (sentenceText.length > 0) {
+        parts.push(sentenceText);
+        // Add separator if not last
+        if (!isLast && sentence.separator) {
+          parts.push(sentence.separator);
+        } else if (!isLast) {
+          parts.push(' ');
+        }
+      }
+    }
+    
+    charPos += sentenceLength + (isLast ? 0 : (sentence.separator ?? ' ').length);
+  }
+  
+  return parts.join('').trim();
+};
 
 export const ExportView = ({ onClose }: ExportViewProps) => {
   const { document } = useDocument();
@@ -18,22 +62,10 @@ export const ExportView = ({ onClose }: ExportViewProps) => {
     .map(id => document.fragments.find(f => f.id === id))
     .filter(f => f !== undefined);
 
-  // Build the export content - only committed sentences with proper separators
+  // Build the export content - only committed sentences with proper separators, excluding ghost text
   const exportContent = useMemo(() => {
     const paragraphs = placedFragments.map(fragment => {
-      // Filter to only committed sentences
-      const committedWithIndex = fragment.sentences
-        .map((s, i) => ({ ...s, originalIndex: i }))
-        .filter(s => s.committed);
-      
-      // Join with proper separators
-      const text = committedWithIndex.map((s, i) => {
-        const isLast = i === committedWithIndex.length - 1;
-        if (isLast) return s.text;
-        return s.text + (s.separator ?? ' ');
-      }).join('');
-      
-      return text;
+      return getCommittedTextWithoutGhosts(fragment);
     }).filter(text => text.length > 0);
 
     return paragraphs.join('\n\n');

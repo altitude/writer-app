@@ -7,10 +7,17 @@ export interface SentenceInput {
   separator?: string; // Whitespace/newlines after this sentence (default: ' ')
 }
 
+// A ghost range marks text for deletion (strikethrough)
+export interface GhostRange {
+  start: number;
+  end: number;
+}
+
 // A fragment is a collection of sentences
 export interface Fragment {
   id: string;
   sentences: SentenceInput[];
+  ghostRanges?: GhostRange[]; // Character ranges marked for deletion
 }
 
 // A document is a complete story/piece with fragments

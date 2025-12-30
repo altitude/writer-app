@@ -8,9 +8,9 @@ import React, {
   useState,
 } from "react";
 import { useLibrary } from "./LibraryContext";
-import { Fragment, SentenceInput } from "./types";
+import { Fragment, SentenceInput, GhostRange } from "./types";
 
-export type { Fragment, SentenceInput };
+export type { Fragment, SentenceInput, GhostRange };
 
 // The document state (fragments and assembly)
 export interface DocumentState {
@@ -30,7 +30,7 @@ interface DocumentContextValue {
   
   // Fragment operations
   createFragment: () => void;
-  updateFragment: (id: string, sentences: SentenceInput[]) => void;
+  updateFragment: (id: string, sentences: SentenceInput[], ghostRanges?: GhostRange[]) => void;
   deleteFragment: (id: string) => void;
   
   // Assembly operations
@@ -115,11 +115,11 @@ export const DocumentProvider = ({ children }: DocumentProviderProps) => {
     setCurrentFragmentIndex(document.fragments.length);
   }, [document.fragments.length]);
 
-  const updateFragment = useCallback((id: string, sentences: SentenceInput[]) => {
+  const updateFragment = useCallback((id: string, sentences: SentenceInput[], ghostRanges?: GhostRange[]) => {
     setDocument(prev => ({
       ...prev,
       fragments: prev.fragments.map(f => 
-        f.id === id ? { ...f, sentences } : f
+        f.id === id ? { ...f, sentences, ghostRanges: ghostRanges || [] } : f
       ),
     }));
   }, []);

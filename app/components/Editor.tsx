@@ -11,15 +11,16 @@ import {
   isCharInSelectedSentences,
 } from "./DocumentAST";
 import { useVirtualKeyboard, VirtualKeyEvent } from "./VirtualKeyboard";
-import { SentenceInput } from "./types";
+import { SentenceInput, GhostRange } from "./types";
 import { SuggestionBar } from "./SuggestionBar";
 import { getSuggestions } from "./wordList";
 
-export type { SentenceInput };
+export type { SentenceInput, GhostRange };
 
 interface EditorProps {
   initialContent?: SentenceInput[];
-  onContentChange?: (sentences: SentenceInput[]) => void;
+  initialGhostRanges?: GhostRange[];
+  onContentChange?: (sentences: SentenceInput[], ghostRanges: GhostRange[]) => void;
   fragmentId?: string;
   insertWord?: string | null;
   onWordInserted?: () => void;
@@ -196,7 +197,7 @@ const moveCursorVertically = (pos: number, text: string, direction: 1 | -1): num
   }
 };
 
-export const Editor = ({ initialContent = [], onContentChange, fragmentId, insertWord, onWordInserted }: EditorProps) => {
+export const Editor = ({ initialContent = [], initialGhostRanges = [], onContentChange, fragmentId, insertWord, onWordInserted }: EditorProps) => {
   // Build initial text and committed state from structured content
   // Use each sentence's separator (default ' ') except for the last sentence
   const initialText = initialContent.map((s, i) => {
@@ -284,7 +285,7 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId, inser
   }, [ast]);
 
   // Track ghost ranges (text marked for deletion from typing over committed selection)
-  const [ghostRanges, setGhostRanges] = useState<{ start: number; end: number }[]>([]);
+  const [ghostRanges, setGhostRanges] = useState<{ start: number; end: number }[]>(initialGhostRanges);
   const ghostRangesRef = useRef(ghostRanges);
   ghostRangesRef.current = ghostRanges;
 
@@ -1078,9 +1079,9 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId, inser
           separator,
         };
       });
-      onContentChangeRef.current(sentences);
+      onContentChangeRef.current(sentences, ghostRanges);
     }
-  }, [ast, committedSentences, text]);
+  }, [ast, committedSentences, text, ghostRanges]);
 
   const isWordSelected = (index: number) => {
     if (!wordSelection) return false;
