@@ -2,30 +2,24 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import { useLibrary } from "./LibraryContext";
+import { Fragment, SentenceInput } from "./types";
 
-// A sentence input with text and commit state
-export interface SentenceInput {
-  text: string;
-  committed: boolean;
-}
+export type { Fragment, SentenceInput };
 
-// A fragment is a collection of sentences
-export interface Fragment {
-  id: string;
-  sentences: SentenceInput[];
-}
-
-// The full document with fragments and assembly order
-export interface Document {
+// The document state (fragments and assembly)
+export interface DocumentState {
   fragments: Fragment[];
   assembly: string[]; // Ordered fragment IDs (placed fragments)
 }
 
 interface DocumentContextValue {
-  document: Document;
+  document: DocumentState;
   currentFragmentIndex: number;
   currentFragment: Fragment | null;
   
@@ -49,25 +43,49 @@ const DocumentContext = createContext<DocumentContextValue | null>(null);
 
 // Generate unique IDs
 let fragmentIdCounter = 0;
-const generateId = () => `fragment-${++fragmentIdCounter}`;
+const generateId = () => `fragment-${Date.now()}-${++fragmentIdCounter}`;
 
 interface DocumentProviderProps {
-  initialFragments?: Fragment[];
   children?: React.ReactNode;
 }
 
-export const DocumentProvider = ({ 
-  initialFragments = [], 
-  children 
-}: DocumentProviderProps) => {
-  const [document, setDocument] = useState<Document>(() => ({
-    fragments: initialFragments.length > 0 
-      ? initialFragments 
-      : [{ id: generateId(), sentences: [] }],
-    assembly: initialFragments.map(f => f.id),
-  }));
+export const DocumentProvider = ({ children }: DocumentProviderProps) => {
+  const { currentDocument, updateCurrentDocumentContent } = useLibrary();
+  
+  // Initialize from library's current document
+  const [document, setDocument] = useState<DocumentState>(() => {
+    if (currentDocument) {
+      return {
+        fragments: currentDocument.fragments,
+        assembly: currentDocument.assembly,
+      };
+    }
+    // Fallback (shouldn't happen if library is set up correctly)
+    const emptyFragment = { id: generateId(), sentences: [] };
+    return {
+      fragments: [emptyFragment],
+      assembly: [emptyFragment.id],
+    };
+  });
   
   const [currentFragmentIndex, setCurrentFragmentIndex] = useState(0);
+  
+  // Sync changes back to library (debounced via ref to avoid infinite loops)
+  const syncTimeoutRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    syncTimeoutRef.current = window.setTimeout(() => {
+      updateCurrentDocumentContent(document.fragments, document.assembly);
+    }, 100);
+    
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, [document, updateCurrentDocumentContent]);
 
   const currentFragment = useMemo(() => 
     document.fragments[currentFragmentIndex] ?? null,

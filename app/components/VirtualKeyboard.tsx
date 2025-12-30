@@ -72,8 +72,8 @@ const shouldPreventDefault = (e: KeyboardEvent): boolean => {
   if (HANDLED_KEYS.has(e.key)) return true;
   // Prevent for Ctrl+A/E (line navigation)
   if (e.ctrlKey && (e.key === "a" || e.key === "e")) return true;
-  // Prevent for fragment navigation: Cmd+J, Cmd+K, Ctrl+N, Cmd+A (assembly), Cmd+P (preview)
-  if (e.metaKey && ["j", "k", "a", "p"].includes(e.key.toLowerCase())) return true;
+  // Prevent for fragment navigation: Cmd+J, Cmd+K, Ctrl+N, Cmd+A (assembly), Cmd+P (preview), Cmd+L (library)
+  if (e.metaKey && ["j", "k", "a", "p", "l"].includes(e.key.toLowerCase())) return true;
   if (e.ctrlKey && e.key.toLowerCase() === "n") return true;
   // Allow Cmd+C, Cmd+V, Cmd+X, Cmd+Z (system clipboard/undo)
   if (e.metaKey && ["c", "v", "x", "z"].includes(e.key.toLowerCase())) return false;

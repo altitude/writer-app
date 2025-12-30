@@ -11,11 +11,9 @@ import {
   isCharInSelectedSentences,
 } from "./DocumentAST";
 import { useVirtualKeyboard, VirtualKeyEvent } from "./VirtualKeyboard";
+import { SentenceInput } from "./types";
 
-export interface SentenceInput {
-  text: string;
-  committed: boolean;
-}
+export type { SentenceInput };
 
 interface EditorProps {
   initialContent?: SentenceInput[];

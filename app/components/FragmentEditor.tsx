@@ -7,7 +7,11 @@ import { PreviewView } from "./PreviewView";
 
 type ViewMode = 'editor' | 'assembly' | 'preview';
 
-export const FragmentEditor = () => {
+interface FragmentEditorProps {
+  onShowLibrary?: () => void;
+}
+
+export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
   const { 
     document,
     currentFragmentIndex, 
@@ -105,7 +109,7 @@ export const FragmentEditor = () => {
           Fragment {currentFragmentIndex + 1} of {document.fragments.length}
         </span>
         <span className="fragment-shortcuts">
-          ⌘J prev · ⌘K next · ^N new · ⌘A assembly · ⌘P preview
+          ⌘L library · ⌘J prev · ⌘K next · ^N new · ⌘A assembly · ⌘P preview
         </span>
       </div>
       <Editor
