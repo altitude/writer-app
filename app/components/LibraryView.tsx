@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useLibrary, Document } from "./LibraryContext";
 import { useVirtualKeyboard } from "./VirtualKeyboard";
 
@@ -12,16 +12,49 @@ export const LibraryView = ({ onOpenDocument }: LibraryViewProps) => {
     createDocument,
     deleteDocument,
     openDocument,
+    updateDocumentTitle,
   } = useLibrary();
 
   const { subscribe } = useVirtualKeyboard();
   const [selectedIndex, setSelectedIndex] = useState(0);
+  
+  // Renaming state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const documents = library.documents;
+
+  // Focus input when entering edit mode
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId]);
 
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (event: { key: string; metaKey?: boolean }) => {
+      // When editing, only handle Enter and Escape
+      if (editingId) {
+        if (event.key === "Enter") {
+          // Save the new title
+          if (editingTitle.trim()) {
+            updateDocumentTitle(editingId, editingTitle.trim());
+          }
+          setEditingId(null);
+          return;
+        }
+        if (event.key === "Escape") {
+          // Cancel editing
+          setEditingId(null);
+          return;
+        }
+        // Let other keys through to the input
+        return;
+      }
+
       // Arrow up/down to navigate
       if (event.key === "ArrowUp") {
         setSelectedIndex(prev => Math.max(0, prev - 1));
@@ -39,6 +72,16 @@ export const LibraryView = ({ onOpenDocument }: LibraryViewProps) => {
         if (doc) {
           openDocument(doc.id);
           onOpenDocument(doc.id);
+        }
+        return;
+      }
+
+      // R to rename document
+      if (event.key === "r" || event.key === "R") {
+        const doc = documents[selectedIndex];
+        if (doc) {
+          setEditingId(doc.id);
+          setEditingTitle(doc.title);
         }
         return;
       }
@@ -65,7 +108,7 @@ export const LibraryView = ({ onOpenDocument }: LibraryViewProps) => {
     };
 
     return subscribe(handleKeyDown);
-  }, [subscribe, documents, selectedIndex, createDocument, deleteDocument, openDocument, onOpenDocument]);
+  }, [subscribe, documents, selectedIndex, createDocument, deleteDocument, openDocument, onOpenDocument, editingId, editingTitle, updateDocumentTitle]);
 
   // Check if a document is empty (can be deleted without confirmation)
   const isDocumentEmpty = (doc: Document) => {
@@ -131,7 +174,7 @@ export const LibraryView = ({ onOpenDocument }: LibraryViewProps) => {
       <div className="library-header">
         <span className="library-title">Library</span>
         <span className="library-shortcuts">
-          ↑↓ nav · N new · ⌫ del · ↵ open
+          {editingId ? '↵ save · Esc cancel' : '↑↓ nav · R rename · N new · ⌫ del · ↵ open'}
         </span>
       </div>
 
@@ -146,16 +189,33 @@ export const LibraryView = ({ onOpenDocument }: LibraryViewProps) => {
           <div className="library-list">
             {documents.map((doc, idx) => {
               const isSelected = selectedIndex === idx;
+              const isEditing = editingId === doc.id;
               const isEmpty = isDocumentEmpty(doc);
               const wordCount = getWordCount(doc);
               
               return (
                 <div
                   key={doc.id}
-                  className={`library-item ${isSelected ? 'selected' : ''}`}
+                  className={`library-item ${isSelected ? 'selected' : ''} ${isEditing ? 'editing' : ''}`}
                 >
                   <div className="library-item-main">
-                    <span className="library-item-title">{doc.title}</span>
+                    {isEditing ? (
+                      <input
+                        ref={inputRef}
+                        type="text"
+                        className="library-item-title-input"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={() => {
+                          if (editingTitle.trim()) {
+                            updateDocumentTitle(editingId, editingTitle.trim());
+                          }
+                          setEditingId(null);
+                        }}
+                      />
+                    ) : (
+                      <span className="library-item-title">{doc.title}</span>
+                    )}
                     <span className="library-item-meta">
                       {wordCount} words · {formatTime(doc.updatedAt)}
                       {isEmpty && ' · empty'}

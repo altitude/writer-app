@@ -462,6 +462,23 @@ body {
   white-space: nowrap;
 }
 
+.library-item.editing {
+  border-color: #9084ec;
+}
+
+.library-item-title-input {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: bold;
+  color: #ddd8ff;
+  background-color: #1c1a2c;
+  border: 1px solid #9084ec;
+  border-radius: 3px;
+  padding: 2px 6px;
+  outline: none;
+  width: 200px;
+}
+
 .assembly-content {
   flex: 1;
   overflow-y: auto;

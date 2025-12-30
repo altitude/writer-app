@@ -68,6 +68,14 @@ const HANDLED_KEYS = new Set([
 ]);
 
 const shouldPreventDefault = (e: KeyboardEvent): boolean => {
+  // Don't prevent default if user is typing in an input or textarea
+  const target = e.target as HTMLElement;
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+    // Only prevent our app shortcuts, not regular typing
+    if (e.metaKey && ["j", "k", "a", "p", "l"].includes(e.key.toLowerCase())) return true;
+    return false;
+  }
+  
   // Always prevent for our navigation/editing keys
   if (HANDLED_KEYS.has(e.key)) return true;
   // Prevent for Ctrl+A/E (line navigation)
