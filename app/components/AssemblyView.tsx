@@ -5,9 +5,10 @@ import { useVirtualKeyboard } from "./VirtualKeyboard";
 interface AssemblyViewProps {
   onClose: () => void;
   onSelectFragment: (index: number) => void;
+  onShowPreview: () => void;
 }
 
-export const AssemblyView = ({ onClose, onSelectFragment }: AssemblyViewProps) => {
+export const AssemblyView = ({ onClose, onSelectFragment, onShowPreview }: AssemblyViewProps) => {
   const {
     document,
     currentFragmentIndex,
@@ -15,6 +16,8 @@ export const AssemblyView = ({ onClose, onSelectFragment }: AssemblyViewProps) =
     unplaceFragment,
     reorderAssembly,
     setCurrentFragmentIndex,
+    createFragment,
+    deleteFragment,
   } = useDocument();
 
   const { subscribe } = useVirtualKeyboard();
@@ -96,8 +99,8 @@ export const AssemblyView = ({ onClose, onSelectFragment }: AssemblyViewProps) =
         return;
       }
 
-      // P to place/unplace
-      if (event.key === "p" || event.key === "P") {
+      // Tab to place/unplace
+      if (event.key === "Tab") {
         if (isInPlacedSection) {
           // Unplace the fragment
           const fragment = placedFragments[selectedIndex];
@@ -117,6 +120,35 @@ export const AssemblyView = ({ onClose, onSelectFragment }: AssemblyViewProps) =
         }
         return;
       }
+
+      // P to show preview
+      if (event.key === "p" || event.key === "P") {
+        onShowPreview();
+        return;
+      }
+
+      // N to create new fragment and go to it
+      if (event.key === "n" || event.key === "N") {
+        createFragment();
+        onClose();
+        return;
+      }
+
+      // Backspace to delete empty fragments
+      if (event.key === "Backspace") {
+        const fragment = isInPlacedSection
+          ? placedFragments[selectedIndex]
+          : unplacedFragments[selectedIndex - placedFragments.length];
+        
+        if (fragment && fragment.sentences.length === 0) {
+          deleteFragment(fragment.id);
+          // Adjust selection if needed
+          if (selectedIndex > 0) {
+            setSelectedIndex(prev => prev - 1);
+          }
+        }
+        return;
+      }
     };
 
     return subscribe(handleKeyDown);
@@ -124,6 +156,7 @@ export const AssemblyView = ({ onClose, onSelectFragment }: AssemblyViewProps) =
     subscribe,
     onClose,
     onSelectFragment,
+    onShowPreview,
     selectedIndex,
     isInPlacedSection,
     placedFragments,
@@ -134,6 +167,8 @@ export const AssemblyView = ({ onClose, onSelectFragment }: AssemblyViewProps) =
     placeFragment,
     unplaceFragment,
     setCurrentFragmentIndex,
+    createFragment,
+    deleteFragment,
   ]);
 
   // Get first line preview of a fragment
@@ -156,7 +191,7 @@ export const AssemblyView = ({ onClose, onSelectFragment }: AssemblyViewProps) =
       <div className="assembly-header">
         <span className="assembly-title">Assembly</span>
         <span className="assembly-shortcuts">
-          ↑↓ navigate · ⌘↑↓ reorder · P place/unplace · ↵ open · Esc close
+          ↑↓ nav · ⌘↑↓ reorder · ⇥ place · N new · P preview · ⌫ del · ↵ open · Esc
         </span>
       </div>
 

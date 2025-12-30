@@ -3,6 +3,9 @@ import { Editor, SentenceInput } from "./Editor";
 import { useDocument } from "./DocumentContext";
 import { useVirtualKeyboard } from "./VirtualKeyboard";
 import { AssemblyView } from "./AssemblyView";
+import { PreviewView } from "./PreviewView";
+
+type ViewMode = 'editor' | 'assembly' | 'preview';
 
 export const FragmentEditor = () => {
   const { 
@@ -17,19 +20,25 @@ export const FragmentEditor = () => {
   } = useDocument();
   
   const { subscribe } = useVirtualKeyboard();
-  const [showAssembly, setShowAssembly] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('editor');
 
   // Handle fragment navigation shortcuts
   useEffect(() => {
-    const handleKeyDown = (event: { key: string; metaKey?: boolean; shiftKey?: boolean }) => {
+    const handleKeyDown = (event: { key: string; metaKey?: boolean; shiftKey?: boolean; ctrlKey?: boolean }) => {
       // Cmd+A — Toggle assembly view
       if (event.metaKey && event.key === "a") {
-        setShowAssembly(prev => !prev);
+        setViewMode(prev => prev === 'assembly' ? 'editor' : 'assembly');
         return;
       }
       
-      // Don't handle other shortcuts when assembly is open
-      if (showAssembly) return;
+      // Cmd+P — Toggle preview view
+      if (event.metaKey && event.key.toLowerCase() === "p") {
+        setViewMode(prev => prev === 'preview' ? 'editor' : 'preview');
+        return;
+      }
+      
+      // Don't handle other shortcuts when not in editor mode
+      if (viewMode !== 'editor') return;
       
       // Cmd+J — Previous fragment
       if (event.metaKey && event.key.toLowerCase() === "j") {
@@ -51,7 +60,7 @@ export const FragmentEditor = () => {
     };
 
     return subscribe(handleKeyDown);
-  }, [subscribe, goToPreviousFragment, goToNextFragment, createFragment, showAssembly]);
+  }, [subscribe, goToPreviousFragment, goToNextFragment, createFragment, viewMode]);
 
   const handleContentChange = useCallback((sentences: SentenceInput[]) => {
     if (currentFragment) {
@@ -59,19 +68,28 @@ export const FragmentEditor = () => {
     }
   }, [currentFragment, updateFragment]);
 
-  const handleCloseAssembly = useCallback(() => {
-    setShowAssembly(false);
+  const handleCloseToEditor = useCallback(() => {
+    setViewMode('editor');
   }, []);
 
   const handleSelectFragment = useCallback((index: number) => {
     setCurrentFragmentIndex(index);
   }, [setCurrentFragmentIndex]);
 
-  if (showAssembly) {
+  const handleShowPreview = useCallback(() => {
+    setViewMode('preview');
+  }, []);
+
+  if (viewMode === 'preview') {
+    return <PreviewView onClose={handleCloseToEditor} />;
+  }
+
+  if (viewMode === 'assembly') {
     return (
       <AssemblyView 
-        onClose={handleCloseAssembly}
+        onClose={handleCloseToEditor}
         onSelectFragment={handleSelectFragment}
+        onShowPreview={handleShowPreview}
       />
     );
   }
@@ -87,7 +105,7 @@ export const FragmentEditor = () => {
           Fragment {currentFragmentIndex + 1} of {document.fragments.length}
         </span>
         <span className="fragment-shortcuts">
-          ⌘J prev · ⌘K next · ^N new · ⌘A assembly
+          ⌘J prev · ⌘K next · ^N new · ⌘A assembly · ⌘P preview
         </span>
       </div>
       <Editor
