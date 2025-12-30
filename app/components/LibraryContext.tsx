@@ -2,12 +2,18 @@ import React, {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Fragment, Document, Library } from "./types";
 
 export type { Fragment, Document, Library };
+
+// localStorage key for persistence
+const STORAGE_KEY = 'writer-app-library';
+const SAVE_DEBOUNCE_MS = 500;
 
 interface LibraryContextValue {
   library: Library;
@@ -34,11 +40,6 @@ const generateDocumentId = () => `doc-${Date.now()}-${++documentIdCounter}`;
 let fragmentIdCounter = 0;
 const generateFragmentId = () => `fragment-${Date.now()}-${++fragmentIdCounter}`;
 
-const createEmptyFragment = (): Fragment => ({
-  id: generateFragmentId(),
-  sentences: [],
-});
-
 // Create starter content for new documents
 const createStarterContent = (): { fragments: Fragment[], assembly: string[] } => {
   const fragment: Fragment = {
@@ -53,38 +54,98 @@ const createStarterContent = (): { fragments: Fragment[], assembly: string[] } =
   };
 };
 
+// Load library from localStorage (SSR-safe)
+const loadFromStorage = (): Library | null => {
+  if (typeof window === 'undefined') return null;
+  
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return null;
+    
+    const parsed = JSON.parse(saved) as Library;
+    
+    // Basic validation
+    if (!parsed.documents || !Array.isArray(parsed.documents)) {
+      console.warn('Invalid library data in localStorage, starting fresh');
+      return null;
+    }
+    
+    return parsed;
+  } catch (e) {
+    console.warn('Failed to load library from localStorage:', e);
+    return null;
+  }
+};
+
+// Save library to localStorage
+const saveToStorage = (library: Library) => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+  } catch (e) {
+    console.warn('Failed to save library to localStorage:', e);
+  }
+};
+
+// Create default library for first-time users
+const createDefaultLibrary = (): Library => {
+  const { fragments, assembly } = createStarterContent();
+  const starterDoc: Document = {
+    id: generateDocumentId(),
+    title: "Untitled",
+    fragments,
+    assembly,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+  };
+  return {
+    documents: [starterDoc],
+    currentDocumentId: starterDoc.id,
+  };
+};
+
 interface LibraryProviderProps {
-  initialDocuments?: Document[];
   children?: React.ReactNode;
 }
 
-export const LibraryProvider = ({ 
-  initialDocuments = [],
-  children 
-}: LibraryProviderProps) => {
+export const LibraryProvider = ({ children }: LibraryProviderProps) => {
+  // Initialize from localStorage or create default
   const [library, setLibrary] = useState<Library>(() => {
-    // If no initial documents, create one to start with
-    if (initialDocuments.length === 0) {
-      const { fragments, assembly } = createStarterContent();
-      const starterDoc: Document = {
-        id: generateDocumentId(),
-        title: "Untitled",
-        fragments,
-        assembly,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      return {
-        documents: [starterDoc],
-        currentDocumentId: starterDoc.id,
-      };
+    const saved = loadFromStorage();
+    if (saved && saved.documents.length > 0) {
+      return saved;
+    }
+    return createDefaultLibrary();
+  });
+  
+  // Track if this is the first render (skip saving on mount)
+  const isFirstRender = useRef(true);
+  const saveTimeoutRef = useRef<number | null>(null);
+
+  // Save to localStorage on changes (debounced)
+  useEffect(() => {
+    // Skip saving on first render (we just loaded)
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
     }
     
-    return {
-      documents: initialDocuments,
-      currentDocumentId: initialDocuments[0]?.id ?? null,
+    // Debounce saves
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = window.setTimeout(() => {
+      saveToStorage(library);
+    }, SAVE_DEBOUNCE_MS);
+    
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
     };
-  });
+  }, [library]);
 
   const currentDocument = useMemo(() => 
     library.documents.find(d => d.id === library.currentDocumentId) ?? null,
