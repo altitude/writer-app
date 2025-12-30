@@ -650,6 +650,23 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId, inser
         clearSelections();
       }
 
+      // Cmd+Shift+Up: Move cursor to start of document
+      if (event.key === "ArrowUp" && event.metaKey && event.shiftKey) {
+        clearSelections();
+        cursorRef.current = 0;
+        setCursorPosition(0);
+        return;
+      }
+
+      // Cmd+Shift+Down: Move cursor to end of document
+      if (event.key === "ArrowDown" && event.metaKey && event.shiftKey) {
+        clearSelections();
+        const endPos = textRef.current.length;
+        cursorRef.current = endPos;
+        setCursorPosition(endPos);
+        return;
+      }
+
       // Sentence reordering: ArrowUp/ArrowDown when sentence is selected
       if (event.key === "ArrowUp" && sentenceSelectionRef.current) {
         const selection = sentenceSelectionRef.current;

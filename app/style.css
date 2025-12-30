@@ -82,7 +82,7 @@ body {
   display: inline-block;
   width: 2px;
   height: 1.1em;
-  background-color: #ddd8ff;
+  background-color: #ff5caa;
   vertical-align: text-bottom;
   animation: blink 1s step-end infinite;
   margin-right: -2px;
