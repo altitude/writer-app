@@ -71,8 +71,9 @@ const shouldPreventDefault = (e: KeyboardEvent): boolean => {
   if (HANDLED_KEYS.has(e.key)) return true;
   // Prevent for Ctrl+A/E (line navigation)
   if (e.ctrlKey && (e.key === "a" || e.key === "e")) return true;
-  // Prevent for fragment navigation: Cmd+[, Cmd+], Cmd+N, Cmd+A (assembly)
-  if (e.metaKey && ["[", "]", "n", "a"].includes(e.key.toLowerCase())) return true;
+  // Prevent for fragment navigation: Cmd+J, Cmd+K, Ctrl+N, Cmd+A (assembly)
+  if (e.metaKey && ["j", "k", "a"].includes(e.key.toLowerCase())) return true;
+  if (e.ctrlKey && e.key.toLowerCase() === "n") return true;
   // Allow Cmd+C, Cmd+V, Cmd+X, Cmd+Z (system clipboard/undo)
   if (e.metaKey && ["c", "v", "x", "z"].includes(e.key.toLowerCase())) return false;
   // Prevent single character keys (typing)
@@ -98,8 +99,9 @@ export const KeyboardBridge = () => {
       });
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    // Use capture phase to intercept browser shortcuts like Cmd+N before browser handles them
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", handleKeyDown, { capture: true });
   }, [emit]);
 
   return null;

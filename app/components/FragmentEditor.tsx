@@ -31,20 +31,20 @@ export const FragmentEditor = () => {
       // Don't handle other shortcuts when assembly is open
       if (showAssembly) return;
       
-      // Cmd+[ — Previous fragment
-      if (event.metaKey && event.key === "[") {
+      // Cmd+J — Previous fragment
+      if (event.metaKey && event.key.toLowerCase() === "j") {
         goToPreviousFragment();
         return;
       }
       
-      // Cmd+] — Next fragment
-      if (event.metaKey && event.key === "]") {
+      // Cmd+K — Next fragment
+      if (event.metaKey && event.key.toLowerCase() === "k") {
         goToNextFragment();
         return;
       }
       
-      // Cmd+N — New fragment
-      if (event.metaKey && event.key === "n") {
+      // Ctrl+N — New fragment
+      if (event.ctrlKey && event.key.toLowerCase() === "n") {
         createFragment();
         return;
       }
@@ -87,7 +87,7 @@ export const FragmentEditor = () => {
           Fragment {currentFragmentIndex + 1} of {document.fragments.length}
         </span>
         <span className="fragment-shortcuts">
-          ⌘[ prev · ⌘] next · ⌘N new · ⌘A assembly
+          ⌘J prev · ⌘K next · ^N new · ⌘A assembly
         </span>
       </div>
       <Editor

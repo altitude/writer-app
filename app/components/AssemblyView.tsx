@@ -18,9 +18,6 @@ export const AssemblyView = ({ onClose, onSelectFragment }: AssemblyViewProps) =
   } = useDocument();
 
   const { subscribe } = useVirtualKeyboard();
-  
-  // Track selected item in the assembly view
-  const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Build lists of placed and unplaced fragments
   const placedFragments = document.assembly
@@ -30,6 +27,22 @@ export const AssemblyView = ({ onClose, onSelectFragment }: AssemblyViewProps) =
   const unplacedFragments = document.fragments.filter(
     f => !document.assembly.includes(f.id)
   );
+  
+  // Track selected item - start at the fragment being edited
+  const [selectedIndex, setSelectedIndex] = useState(() => {
+    const currentId = document.fragments[currentFragmentIndex]?.id;
+    if (!currentId) return 0;
+    
+    // Check if current fragment is in placed list
+    const placedIndex = placedFragments.findIndex(f => f.id === currentId);
+    if (placedIndex >= 0) return placedIndex;
+    
+    // Otherwise find in unplaced list
+    const unplacedIndex = unplacedFragments.findIndex(f => f.id === currentId);
+    if (unplacedIndex >= 0) return placedFragments.length + unplacedIndex;
+    
+    return 0;
+  });
 
   const totalItems = placedFragments.length + unplacedFragments.length;
   const isInPlacedSection = selectedIndex < placedFragments.length;
