@@ -12,13 +12,15 @@ import {
 } from "./DocumentAST";
 import { useVirtualKeyboard, VirtualKeyEvent } from "./VirtualKeyboard";
 
-interface SentenceInput {
+export interface SentenceInput {
   text: string;
   committed: boolean;
 }
 
 interface EditorProps {
   initialContent?: SentenceInput[];
+  onContentChange?: (sentences: SentenceInput[]) => void;
+  fragmentId?: string;
 }
 
 interface HistoryState {
@@ -192,7 +194,7 @@ const moveCursorVertically = (pos: number, text: string, direction: 1 | -1): num
   }
 };
 
-export const Editor = ({ initialContent = [] }: EditorProps) => {
+export const Editor = ({ initialContent = [], onContentChange, fragmentId }: EditorProps) => {
   // Build initial text and committed state from structured content
   const initialText = initialContent.map(s => s.text).join(' ');
   const initialCommitted = new Set(
@@ -204,6 +206,10 @@ export const Editor = ({ initialContent = [] }: EditorProps) => {
   const [text, setText] = useState(initialText);
   const textRef = useRef(text);
   textRef.current = text;
+
+  // Use ref to avoid infinite loops when calling onContentChange
+  const onContentChangeRef = useRef(onContentChange);
+  onContentChangeRef.current = onContentChange;
 
   // Parse document into AST (memoized - only recalculates when text changes)
   const ast = useMemo(() => parseDocument(text), [text]);
@@ -848,6 +854,17 @@ export const Editor = ({ initialContent = [] }: EditorProps) => {
       },
     });
   }, [ast, committedSentences, cursorPosition, sentenceSelection, setDebugData, text, ghostRanges, wordSelection]);
+
+  // Sync content changes back to parent (for fragment persistence)
+  useEffect(() => {
+    if (onContentChangeRef.current) {
+      const sentences: SentenceInput[] = ast.sentences.map((s, i) => ({
+        text: text.slice(s.charStart, s.charEnd),
+        committed: committedSentences.has(i),
+      }));
+      onContentChangeRef.current(sentences);
+    }
+  }, [ast, committedSentences, text]);
 
   const isWordSelected = (index: number) => {
     if (!wordSelection) return false;

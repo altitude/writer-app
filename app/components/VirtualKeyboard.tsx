@@ -71,8 +71,10 @@ const shouldPreventDefault = (e: KeyboardEvent): boolean => {
   if (HANDLED_KEYS.has(e.key)) return true;
   // Prevent for Ctrl+A/E (line navigation)
   if (e.ctrlKey && (e.key === "a" || e.key === "e")) return true;
-  // Allow Cmd+C, Cmd+V, Cmd+X, Cmd+Z, Cmd+A (system clipboard/undo/select)
-  if (e.metaKey && ["c", "v", "x", "z", "a"].includes(e.key.toLowerCase())) return false;
+  // Prevent for fragment navigation: Cmd+[, Cmd+], Cmd+N, Cmd+A (assembly)
+  if (e.metaKey && ["[", "]", "n", "a"].includes(e.key.toLowerCase())) return true;
+  // Allow Cmd+C, Cmd+V, Cmd+X, Cmd+Z (system clipboard/undo)
+  if (e.metaKey && ["c", "v", "x", "z"].includes(e.key.toLowerCase())) return false;
   // Prevent single character keys (typing)
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) return true;
   return false;

@@ -157,6 +157,12 @@ export const DebugPanel = ({ data }: DebugPanelProps) => {
           <button onClick={() => simulateKey("z", { metaKey: true, shiftKey: true })}>⇧⌘Z</button>
         </div>
         <div className="debug-controls-row">
+          <span className="debug-label">Fragment:</span>
+          <button onClick={() => simulateKey("[", { metaKey: true })}>⌘[</button>
+          <button onClick={() => simulateKey("]", { metaKey: true })}>⌘]</button>
+          <button onClick={() => simulateKey("n", { metaKey: true })}>⌘N</button>
+        </div>
+        <div className="debug-controls-row">
           <span className="debug-label">Other:</span>
           <button onClick={() => simulateKey("Escape")}>Esc</button>
           <button onClick={() => simulateKey("Backspace")}>⌫</button>

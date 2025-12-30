@@ -12,15 +12,42 @@ body {
   margin-top: 100px;
 }
 
+.fragment-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.fragment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #252336;
+  border-bottom: 1px solid #3d3a55;
+  font-family: monospace;
+  font-size: 12px;
+  color: #9084ec;
+}
+
+.fragment-indicator {
+  font-weight: bold;
+}
+
+.fragment-shortcuts {
+  opacity: 0.6;
+}
+
 .editor-container {
   width: 100%;
-  height: 100%;
+  flex: 1;
   padding: 10px;
   color: #ddd8ff;
   font-family: monospace;
   font-size: 18px;
   line-height: 1.3;
   text-overflow: clip;
+  overflow-y: auto;
 }
 
 .editor-container pre {
@@ -243,4 +270,121 @@ body {
   opacity: 0.5;
   background-color: #5a3a3a !important;
   color: #ff9999 !important;
+}
+
+/* Assembly View */
+.assembly-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1c1a2c;
+}
+
+.assembly-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #2d2a45;
+  border-bottom: 2px solid #9084ec;
+}
+
+.assembly-title {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: bold;
+  color: #9084ec;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.assembly-shortcuts {
+  font-family: monospace;
+  font-size: 11px;
+  color: #ddd8ff;
+  opacity: 0.5;
+}
+
+.assembly-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.assembly-section {
+  margin-bottom: 16px;
+}
+
+.assembly-section-title {
+  font-family: monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #4ade80;
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.assembly-unplaced .assembly-section-title {
+  color: #9084ec;
+  opacity: 0.6;
+}
+
+.assembly-empty {
+  font-family: monospace;
+  font-size: 13px;
+  color: #ddd8ff;
+  opacity: 0.4;
+  padding: 8px 12px;
+  font-style: italic;
+}
+
+.assembly-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  background-color: #252336;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  transition: all 0.1s ease;
+  font-family: monospace;
+  font-size: 13px;
+  color: #ddd8ff;
+}
+
+.assembly-item.selected {
+  border-color: #9084ec;
+  background-color: #2d2a45;
+}
+
+.assembly-item.current {
+  box-shadow: inset 0 0 0 1px #4ade80;
+}
+
+.assembly-item-index {
+  min-width: 20px;
+  color: #9084ec;
+  font-weight: bold;
+}
+
+.assembly-item-progress {
+  font-size: 14px;
+  min-width: 18px;
+  text-align: center;
+}
+
+.assembly-item-preview {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.8;
+}
+
+.assembly-item-count {
+  font-size: 11px;
+  color: #9084ec;
+  opacity: 0.6;
 }
