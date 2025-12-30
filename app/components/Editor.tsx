@@ -237,6 +237,50 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId, inser
   const committedSentencesRef = useRef(committedSentences);
   committedSentencesRef.current = committedSentences;
 
+  // Track previous AST to detect sentence boundary changes
+  const prevAstRef = useRef<{ sentences: typeof ast.sentences; committedCharRanges: { start: number; end: number }[] } | null>(null);
+
+  // Remap committed sentences when sentence boundaries change
+  useEffect(() => {
+    const prevData = prevAstRef.current;
+    
+    if (prevData) {
+      // Check if sentence count changed (indicates merge/split)
+      if (prevData.sentences.length !== ast.sentences.length) {
+        const newCommitted = new Set<number>();
+        
+        // For each previously committed sentence, find which new sentence(s) contain its text
+        for (const oldRange of prevData.committedCharRanges) {
+          // Find new sentences that overlap with the old committed range
+          for (let i = 0; i < ast.sentences.length; i++) {
+            const newSentence = ast.sentences[i];
+            // Check if there's any overlap between old range and new sentence
+            const overlaps = oldRange.start < newSentence.charEnd && oldRange.end > newSentence.charStart;
+            if (overlaps) {
+              newCommitted.add(i);
+            }
+          }
+        }
+        
+        setCommittedSentences(newCommitted);
+        committedSentencesRef.current = newCommitted;
+      }
+    }
+    
+    // Store current AST and committed ranges for next comparison
+    const committedCharRanges = Array.from(committedSentencesRef.current)
+      .filter(idx => idx < ast.sentences.length)
+      .map(idx => ({
+        start: ast.sentences[idx].charStart,
+        end: ast.sentences[idx].charEnd,
+      }));
+    
+    prevAstRef.current = {
+      sentences: ast.sentences,
+      committedCharRanges,
+    };
+  }, [ast]);
+
   // Track ghost ranges (text marked for deletion from typing over committed selection)
   const [ghostRanges, setGhostRanges] = useState<{ start: number; end: number }[]>([]);
   const ghostRangesRef = useRef(ghostRanges);
