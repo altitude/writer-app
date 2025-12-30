@@ -3,6 +3,7 @@ import { LibraryProvider, useLibrary } from "../components/LibraryContext";
 import { DocumentProvider } from "../components/DocumentContext";
 import { FragmentEditor } from "../components/FragmentEditor";
 import { LibraryView } from "../components/LibraryView";
+import { HelpView } from "../components/HelpView";
 import { useVirtualKeyboard } from "../components/VirtualKeyboard";
 
 // Main app content that switches between library and editor
@@ -10,10 +11,18 @@ const AppContent = () => {
   const { library, currentDocument, closeDocument, openDocument } = useLibrary();
   const { subscribe } = useVirtualKeyboard();
   const [showLibrary, setShowLibrary] = useState(!currentDocument);
+  const [showHelp, setShowHelp] = useState(false);
 
-  // Handle Cmd+L to toggle library
+  // Handle global shortcuts
   useEffect(() => {
     const handleKeyDown = (event: { key: string; metaKey?: boolean }) => {
+      // Cmd+/ to show help (unless already showing help)
+      if (event.metaKey && event.key === "/" && !showHelp) {
+        setShowHelp(true);
+        return;
+      }
+      
+      // Cmd+L to toggle library
       if (event.metaKey && event.key.toLowerCase() === "l") {
         setShowLibrary(prev => !prev);
         return;
@@ -21,7 +30,7 @@ const AppContent = () => {
     };
 
     return subscribe(handleKeyDown);
-  }, [subscribe]);
+  }, [subscribe, showHelp]);
 
   const handleOpenDocument = useCallback((id: string) => {
     openDocument(id);
@@ -31,6 +40,15 @@ const AppContent = () => {
   const handleShowLibrary = useCallback(() => {
     setShowLibrary(true);
   }, []);
+
+  const handleCloseHelp = useCallback(() => {
+    setShowHelp(false);
+  }, []);
+
+  // Show help overlay if requested
+  if (showHelp) {
+    return <HelpView onClose={handleCloseHelp} />;
+  }
 
   // Show library if no document is open or if explicitly requested
   if (showLibrary || !currentDocument) {

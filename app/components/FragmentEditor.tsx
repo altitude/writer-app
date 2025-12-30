@@ -1,11 +1,12 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { Editor, SentenceInput } from "./Editor";
 import { useDocument } from "./DocumentContext";
 import { useVirtualKeyboard } from "./VirtualKeyboard";
 import { AssemblyView } from "./AssemblyView";
 import { PreviewView } from "./PreviewView";
+import { DictionaryView } from "./DictionaryView";
 
-type ViewMode = 'editor' | 'assembly' | 'preview';
+type ViewMode = 'editor' | 'assembly' | 'preview' | 'dictionary';
 
 interface FragmentEditorProps {
   onShowLibrary?: () => void;
@@ -25,6 +26,7 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
   
   const { subscribe } = useVirtualKeyboard();
   const [viewMode, setViewMode] = useState<ViewMode>('editor');
+  const [wordToInsert, setWordToInsert] = useState<string | null>(null);
 
   // Handle fragment navigation shortcuts
   useEffect(() => {
@@ -38,6 +40,12 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
       // Cmd+P — Toggle preview view
       if (event.metaKey && event.key.toLowerCase() === "p") {
         setViewMode(prev => prev === 'preview' ? 'editor' : 'preview');
+        return;
+      }
+      
+      // Cmd+D — Toggle dictionary view
+      if (event.metaKey && event.key.toLowerCase() === "d") {
+        setViewMode(prev => prev === 'dictionary' ? 'editor' : 'dictionary');
         return;
       }
       
@@ -84,6 +92,24 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
     setViewMode('preview');
   }, []);
 
+  const handleInsertWord = useCallback((word: string) => {
+    setWordToInsert(word);
+    setViewMode('editor');
+  }, []);
+
+  const handleWordInserted = useCallback(() => {
+    setWordToInsert(null);
+  }, []);
+
+  if (viewMode === 'dictionary') {
+    return (
+      <DictionaryView 
+        onClose={handleCloseToEditor}
+        onInsertWord={handleInsertWord}
+      />
+    );
+  }
+
   if (viewMode === 'preview') {
     return <PreviewView onClose={handleCloseToEditor} />;
   }
@@ -109,7 +135,7 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
           Fragment {currentFragmentIndex + 1} of {document.fragments.length}
         </span>
         <span className="fragment-shortcuts">
-          ⌘L library · ⌘J prev · ⌘K next · ^N new · ⌘A assembly · ⌘P preview
+          ⌘/ help · ⌘D dictionary · ⌘A assembly · ⌘P preview
         </span>
       </div>
       <Editor
@@ -117,6 +143,8 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
         initialContent={currentFragment.sentences}
         onContentChange={handleContentChange}
         fragmentId={currentFragment.id}
+        insertWord={wordToInsert}
+        onWordInserted={handleWordInserted}
       />
     </div>
   );

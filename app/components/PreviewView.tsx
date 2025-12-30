@@ -15,16 +15,25 @@ export const PreviewView = ({ onClose }: PreviewViewProps) => {
     .map(id => document.fragments.find(f => f.id === id))
     .filter(f => f !== undefined);
 
-  // Build the preview content - only committed sentences
+  // Build the preview content - only committed sentences with proper separators
   const previewContent = placedFragments.map((fragment, fragIdx) => {
-    const committedSentences = fragment.sentences
-      .filter(s => s.committed)
-      .map(s => s.text);
+    // Filter to only committed sentences, keeping track of their original indices
+    const committedWithIndex = fragment.sentences
+      .map((s, i) => ({ ...s, originalIndex: i }))
+      .filter(s => s.committed);
+    
+    // Join with proper separators
+    const text = committedWithIndex.map((s, i) => {
+      const isLast = i === committedWithIndex.length - 1;
+      if (isLast) return s.text;
+      // Use the separator from the original sentence, default to space
+      return s.text + (s.separator ?? ' ');
+    }).join('');
     
     return {
       fragmentId: fragment.id,
       fragmentIndex: fragIdx,
-      text: committedSentences.join(' '),
+      text,
     };
   }).filter(f => f.text.length > 0);
 

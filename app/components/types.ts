@@ -4,6 +4,7 @@
 export interface SentenceInput {
   text: string;
   committed: boolean;
+  separator?: string; // Whitespace/newlines after this sentence (default: ' ')
 }
 
 // A fragment is a collection of sentences

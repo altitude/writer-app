@@ -19,6 +19,8 @@ interface EditorProps {
   initialContent?: SentenceInput[];
   onContentChange?: (sentences: SentenceInput[]) => void;
   fragmentId?: string;
+  insertWord?: string | null;
+  onWordInserted?: () => void;
 }
 
 interface HistoryState {
@@ -192,9 +194,13 @@ const moveCursorVertically = (pos: number, text: string, direction: 1 | -1): num
   }
 };
 
-export const Editor = ({ initialContent = [], onContentChange, fragmentId }: EditorProps) => {
+export const Editor = ({ initialContent = [], onContentChange, fragmentId, insertWord, onWordInserted }: EditorProps) => {
   // Build initial text and committed state from structured content
-  const initialText = initialContent.map(s => s.text).join(' ');
+  // Use each sentence's separator (default ' ') except for the last sentence
+  const initialText = initialContent.map((s, i) => {
+    const isLast = i === initialContent.length - 1;
+    return s.text + (isLast ? '' : (s.separator ?? ' '));
+  }).join('');
   const initialCommitted = new Set(
     initialContent
       .map((s, i) => s.committed ? i : -1)
@@ -286,6 +292,41 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId }: Edi
     committedSentencesRef.current = new Set(state.committedSentences);
     clearSelections();
   };
+
+  // Handle word insertion from dictionary
+  const lastInsertedWordRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    // Prevent duplicate insertions
+    if (insertWord && onWordInserted && insertWord !== lastInsertedWordRef.current) {
+      lastInsertedWordRef.current = insertWord;
+      saveHistory(true);
+      
+      const currentPos = cursorRef.current;
+      const currentText = textRef.current;
+      
+      // Add a space before if cursor is not at start and previous char is not a space
+      const needsSpaceBefore = currentPos > 0 && currentText[currentPos - 1] !== ' ';
+      // Add a space after for convenience
+      const wordWithSpacing = (needsSpaceBefore ? ' ' : '') + insertWord + ' ';
+      
+      const newText = currentText.slice(0, currentPos) + wordWithSpacing + currentText.slice(currentPos);
+      const newCursorPos = currentPos + wordWithSpacing.length;
+      
+      setText(newText);
+      textRef.current = newText;
+      setCursorPosition(newCursorPos);
+      cursorRef.current = newCursorPos;
+      clearSelections();
+      
+      onWordInserted();
+    }
+    
+    // Reset when insertWord becomes null (after insertion completes)
+    if (!insertWord) {
+      lastInsertedWordRef.current = null;
+    }
+  }, [insertWord, onWordInserted]);
 
   useEffect(() => {
     const handleKeyDown = (event: VirtualKeyEvent) => {
@@ -856,10 +897,18 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId }: Edi
   // Sync content changes back to parent (for fragment persistence)
   useEffect(() => {
     if (onContentChangeRef.current) {
-      const sentences: SentenceInput[] = ast.sentences.map((s, i) => ({
-        text: text.slice(s.charStart, s.charEnd),
-        committed: committedSentences.has(i),
-      }));
+      const sentences: SentenceInput[] = ast.sentences.map((s, i) => {
+        const nextSentence = ast.sentences[i + 1];
+        // Capture the separator (whitespace) between this sentence and the next
+        const separator = nextSentence 
+          ? text.slice(s.charEnd, nextSentence.charStart)
+          : undefined;
+        return {
+          text: text.slice(s.charStart, s.charEnd),
+          committed: committedSentences.has(i),
+          separator,
+        };
+      });
       onContentChangeRef.current(sentences);
     }
   }, [ast, committedSentences, text]);
