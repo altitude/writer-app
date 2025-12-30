@@ -12,9 +12,13 @@ import {
 } from "./DocumentAST";
 import { useVirtualKeyboard, VirtualKeyEvent } from "./VirtualKeyboard";
 
+interface SentenceInput {
+  text: string;
+  committed: boolean;
+}
+
 interface EditorProps {
-  initialText?: string;
-  initialCommittedSentences?: number[];
+  initialContent?: SentenceInput[];
 }
 
 interface HistoryState {
@@ -188,7 +192,15 @@ const moveCursorVertically = (pos: number, text: string, direction: 1 | -1): num
   }
 };
 
-export const Editor = ({ initialText = "", initialCommittedSentences = [] }: EditorProps) => {
+export const Editor = ({ initialContent = [] }: EditorProps) => {
+  // Build initial text and committed state from structured content
+  const initialText = initialContent.map(s => s.text).join(' ');
+  const initialCommitted = new Set(
+    initialContent
+      .map((s, i) => s.committed ? i : -1)
+      .filter(i => i >= 0)
+  );
+
   const [text, setText] = useState(initialText);
   const textRef = useRef(text);
   textRef.current = text;
@@ -211,7 +223,7 @@ export const Editor = ({ initialText = "", initialCommittedSentences = [] }: Edi
   sentenceSelectionRef.current = sentenceSelection;
 
   // Track which sentences are committed (by index). Uncommitted sentences are faded.
-  const [committedSentences, setCommittedSentences] = useState<Set<number>>(new Set(initialCommittedSentences));
+  const [committedSentences, setCommittedSentences] = useState<Set<number>>(initialCommitted);
   const committedSentencesRef = useRef(committedSentences);
   committedSentencesRef.current = committedSentences;
 
@@ -770,15 +782,15 @@ export const Editor = ({ initialText = "", initialCommittedSentences = [] }: Edi
           
           if (isCommitted) {
             // Committed sentence: keep old text as ghost (strikethrough), insert new text after
-            // Add a space separator between old and new text (space is part of ghost text)
+            // Add a space separator between old and new text
             const insertPos = range.end;
             const spacer = /[a-zA-Z0-9]/.test(event.key) ? " " : "";
             const newText = spacer + event.key;
             
             setText((prev) => prev.slice(0, insertPos) + newText + prev.slice(insertPos));
             
-            // Mark the old range + spacer as ghost (for deletion)
-            const newGhostRange = { start: range.start, end: range.end + spacer.length };
+            // Mark just the old text as ghost (not including spacer - avoids trailing strikethrough)
+            const newGhostRange = { start: range.start, end: range.end };
             // Update ghost ranges (shift those after insertion point)
             const adjusted = adjustRanges(currentGhostRanges, insertPos, newText.length);
             setGhostRanges([...adjusted, newGhostRange]);

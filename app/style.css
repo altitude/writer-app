@@ -42,6 +42,9 @@ body {
   opacity: 0.4;
   text-decoration: line-through;
   text-decoration-color: rgba(255, 255, 255, 0.5);
+  text-decoration-skip-ink: none;
+  display: inline;
+  box-decoration-break: clone;
 }
 
 .editor-container pre .cursor {
