@@ -40,7 +40,9 @@ export const HelpView = ({ onClose }: HelpViewProps) => {
 
         <div className="help-section">
           <div className="help-section-title">Editor</div>
+          <div className="help-row"><span className="help-key">1 2 3</span> Accept suggestion</div>
           <div className="help-row"><span className="help-key">⌘↵</span> Commit/uncommit sentence</div>
+          <div className="help-row"><span className="help-key">⇧⌘C</span> Capitalize sentence</div>
           <div className="help-row"><span className="help-key">⌥←→</span> Select word</div>
           <div className="help-row"><span className="help-key">⌥⇧←→</span> Extend word selection</div>
           <div className="help-row"><span className="help-key">^A / ^E</span> Line start / end</div>

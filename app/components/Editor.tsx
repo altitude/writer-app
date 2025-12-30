@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 import { useDebug } from "./DebugContext";
 import {
@@ -12,6 +12,8 @@ import {
 } from "./DocumentAST";
 import { useVirtualKeyboard, VirtualKeyEvent } from "./VirtualKeyboard";
 import { SentenceInput } from "./types";
+import { SuggestionBar } from "./SuggestionBar";
+import { getSuggestions } from "./wordList";
 
 export type { SentenceInput };
 
@@ -286,6 +288,57 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId, inser
   const ghostRangesRef = useRef(ghostRanges);
   ghostRangesRef.current = ghostRanges;
 
+  // Get the current word prefix (for autocomplete suggestions)
+  const getCurrentWordPrefix = useCallback((pos: number, txt: string): string => {
+    if (pos === 0) return "";
+    
+    // Walk backwards from cursor to find word start
+    let start = pos;
+    while (start > 0 && !/[\s.,!?;:'"()\-—]/.test(txt[start - 1])) {
+      start--;
+    }
+    
+    return txt.slice(start, pos);
+  }, []);
+
+  // Compute current prefix and suggestions
+  const currentPrefix = useMemo(() => {
+    // Don't show suggestions if there's a selection
+    if (wordSelection || sentenceSelection) return "";
+    return getCurrentWordPrefix(cursorPosition, text);
+  }, [cursorPosition, text, wordSelection, sentenceSelection, getCurrentWordPrefix]);
+
+  const suggestions = useMemo(() => {
+    return getSuggestions(currentPrefix, 3);
+  }, [currentPrefix]);
+
+  const suggestionsRef = useRef(suggestions);
+  suggestionsRef.current = suggestions;
+  const currentPrefixRef = useRef(currentPrefix);
+  currentPrefixRef.current = currentPrefix;
+
+  // Handle suggestion selection
+  const selectSuggestion = useCallback((word: string) => {
+    const prefix = currentPrefixRef.current;
+    if (!prefix) return;
+    
+    saveHistory(true);
+    
+    const pos = cursorRef.current;
+    const currentText = textRef.current;
+    
+    // Replace the prefix with the full word + space
+    const prefixStart = pos - prefix.length;
+    const newText = currentText.slice(0, prefixStart) + word + " " + currentText.slice(pos);
+    const newPos = prefixStart + word.length + 1;
+    
+    setText(newText);
+    textRef.current = newText;
+    setCursorPosition(newPos);
+    cursorRef.current = newPos;
+    clearSelections();
+  }, []);
+
   // Undo/Redo history stacks
   const [undoStack, setUndoStack] = useState<HistoryState[]>([]);
   const undoStackRef = useRef(undoStack);
@@ -414,6 +467,47 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId, inser
           const nextState = currentRedoStack[currentRedoStack.length - 1];
           setRedoStack(prev => prev.slice(0, -1));
           restoreState(nextState);
+        }
+        return;
+      }
+      
+      // Suggestion selection: 1, 2, 3 (when suggestions are available and no modifiers)
+      if (!event.metaKey && !event.ctrlKey && !event.altKey && ["1", "2", "3"].includes(event.key)) {
+        const currentSuggestions = suggestionsRef.current;
+        const idx = parseInt(event.key) - 1;
+        if (currentSuggestions.length > idx) {
+          selectSuggestion(currentSuggestions[idx]);
+          return;
+        }
+      }
+      
+      // Capitalize sentence: Cmd+Shift+C
+      if (event.metaKey && event.shiftKey && event.key.toLowerCase() === "c") {
+        const currentSentenceSelection = sentenceSelectionRef.current;
+        if (currentSentenceSelection) {
+          saveHistory(true);
+          const currentText = textRef.current;
+          const minIdx = Math.min(currentSentenceSelection.start, currentSentenceSelection.end);
+          const maxIdx = Math.max(currentSentenceSelection.start, currentSentenceSelection.end);
+          
+          let newText = currentText;
+          // Capitalize first character of each selected sentence
+          for (let i = minIdx; i <= maxIdx; i++) {
+            const sentence = currentAst.sentences[i];
+            if (sentence) {
+              // Find the first letter in the sentence
+              for (let j = sentence.charStart; j < sentence.charEnd; j++) {
+                if (/[a-zA-Z]/.test(newText[j])) {
+                  newText = newText.slice(0, j) + newText[j].toUpperCase() + newText.slice(j + 1);
+                  break;
+                }
+              }
+            }
+          }
+          
+          setText(newText);
+          textRef.current = newText;
+          // Keep selection so user can do more actions
         }
         return;
       }
@@ -797,6 +891,20 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId, inser
             setCursorPosition(pos - 1);
           }
         }
+      } else if (event.key === "Delete") {
+        // Forward delete (fn+backspace on macOS)
+        saveHistory(true);
+        const currentText = textRef.current;
+        const currentGhostRanges = ghostRangesRef.current;
+        const pos = cursorRef.current;
+        
+        // Can't delete forward if at end
+        if (pos >= currentText.length) return;
+        
+        // Delete character after cursor
+        setText((prev) => prev.slice(0, pos) + prev.slice(pos + 1));
+        setGhostRanges(adjustRanges(currentGhostRanges, pos, -1));
+        // Cursor stays in same position
       } else if (event.key === "Enter" && event.metaKey) {
         saveHistory(true); // Force new undo group for commit toggle
         // Cmd+Enter: Toggle commit state for current sentence or selected sentences
@@ -1076,6 +1184,11 @@ export const Editor = ({ initialContent = [], onContentChange, fragmentId, inser
   return (
     <div className="editor-container">
       <pre>{renderText(ast)}</pre>
+      <SuggestionBar 
+        suggestions={suggestions}
+        currentPrefix={currentPrefix}
+        onSelect={selectSuggestion}
+      />
     </div>
   );
 };

@@ -62,6 +62,7 @@ const HANDLED_KEYS = new Set([
   "ArrowUp",
   "ArrowDown",
   "Backspace",
+  "Delete",
   "Enter",
   "Escape",
   "Tab",
@@ -86,8 +87,10 @@ const shouldPreventDefault = (e: KeyboardEvent): boolean => {
   // Prevent for Cmd+Shift+? help
   if (e.metaKey && e.shiftKey && e.key === "?") return true;
   if (e.ctrlKey && e.key.toLowerCase() === "n") return true;
-  // Allow Cmd+C, Cmd+V, Cmd+X, Cmd+Z (system clipboard/undo)
-  if (e.metaKey && ["c", "v", "x", "z"].includes(e.key.toLowerCase())) return false;
+  // Allow Cmd+C, Cmd+V, Cmd+X, Cmd+Z (system clipboard/undo) - but NOT Cmd+Shift+C (capitalize)
+  if (e.metaKey && !e.shiftKey && ["c", "v", "x", "z"].includes(e.key.toLowerCase())) return false;
+  // Prevent Cmd+Shift+C (capitalize sentence)
+  if (e.metaKey && e.shiftKey && e.key.toLowerCase() === "c") return true;
   // Prevent single character keys (typing)
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) return true;
   return false;
