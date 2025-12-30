@@ -9,9 +9,9 @@ export const HelpView = ({ onClose }: HelpViewProps) => {
   const { subscribe } = useVirtualKeyboard();
 
   useEffect(() => {
-    const handleKeyDown = (event: { key: string; metaKey?: boolean }) => {
+    const handleKeyDown = (event: { key: string; metaKey?: boolean; shiftKey?: boolean }) => {
       // Any key closes help
-      if (event.key === "Escape" || (event.metaKey && event.key === "/") || event.key === "Enter") {
+      if (event.key === "Escape" || (event.metaKey && event.shiftKey && event.key === "?") || event.key === "Enter") {
         onClose();
       }
     };
@@ -35,6 +35,7 @@ export const HelpView = ({ onClose }: HelpViewProps) => {
           <div className="help-row"><span className="help-key">^N</span> New fragment</div>
           <div className="help-row"><span className="help-key">⌘A</span> Assembly view</div>
           <div className="help-row"><span className="help-key">⌘P</span> Preview</div>
+          <div className="help-row"><span className="help-key">⌘E</span> Export</div>
         </div>
 
         <div className="help-section">

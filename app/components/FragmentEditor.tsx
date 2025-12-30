@@ -5,8 +5,9 @@ import { useVirtualKeyboard } from "./VirtualKeyboard";
 import { AssemblyView } from "./AssemblyView";
 import { PreviewView } from "./PreviewView";
 import { DictionaryView } from "./DictionaryView";
+import { ExportView } from "./ExportView";
 
-type ViewMode = 'editor' | 'assembly' | 'preview' | 'dictionary';
+type ViewMode = 'editor' | 'assembly' | 'preview' | 'dictionary' | 'export';
 
 interface FragmentEditorProps {
   onShowLibrary?: () => void;
@@ -46,6 +47,12 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
       // Cmd+D — Toggle dictionary view
       if (event.metaKey && event.key.toLowerCase() === "d") {
         setViewMode(prev => prev === 'dictionary' ? 'editor' : 'dictionary');
+        return;
+      }
+      
+      // Cmd+E — Toggle export view
+      if (event.metaKey && event.key.toLowerCase() === "e") {
+        setViewMode(prev => prev === 'export' ? 'editor' : 'export');
         return;
       }
       
@@ -110,6 +117,10 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
     );
   }
 
+  if (viewMode === 'export') {
+    return <ExportView onClose={handleCloseToEditor} />;
+  }
+
   if (viewMode === 'preview') {
     return <PreviewView onClose={handleCloseToEditor} />;
   }
@@ -135,7 +146,7 @@ export const FragmentEditor = ({ onShowLibrary }: FragmentEditorProps) => {
           Fragment {currentFragmentIndex + 1} of {document.fragments.length}
         </span>
         <span className="fragment-shortcuts">
-          ⌘/ help · ⌘D dictionary · ⌘A assembly · ⌘P preview
+          ⇧⌘? help · ⌘E export · ⌘A assembly · ⌘P preview
         </span>
       </div>
       <Editor

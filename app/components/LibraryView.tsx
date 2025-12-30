@@ -174,7 +174,7 @@ export const LibraryView = ({ onOpenDocument }: LibraryViewProps) => {
       <div className="library-header">
         <span className="library-title">Library</span>
         <span className="library-shortcuts">
-          {editingId ? '↵ save · Esc cancel' : '⌘/ help · R rename · N new · ↵ open'}
+          {editingId ? '↵ save · Esc cancel' : '⇧⌘? help · R rename · N new · ↵ open'}
         </span>
       </div>
 

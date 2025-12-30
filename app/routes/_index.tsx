@@ -15,9 +15,9 @@ const AppContent = () => {
 
   // Handle global shortcuts
   useEffect(() => {
-    const handleKeyDown = (event: { key: string; metaKey?: boolean }) => {
-      // Cmd+/ to show help (unless already showing help)
-      if (event.metaKey && event.key === "/" && !showHelp) {
+    const handleKeyDown = (event: { key: string; metaKey?: boolean; shiftKey?: boolean }) => {
+      // Cmd+Shift+? to show help (unless already showing help)
+      if (event.metaKey && event.shiftKey && event.key === "?" && !showHelp) {
         setShowHelp(true);
         return;
       }

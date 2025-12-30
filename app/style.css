@@ -665,6 +665,161 @@ body {
   opacity: 0.7;
 }
 
+/* Export View */
+.export-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: #1c1a2c;
+}
+
+.export-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #252336;
+  border-bottom: 1px solid #3d3a55;
+  font-family: monospace;
+  font-size: 12px;
+  color: #9084ec;
+}
+
+.export-title {
+  font-weight: bold;
+}
+
+.export-shortcuts {
+  opacity: 0.6;
+}
+
+.export-content {
+  flex: 1;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.export-document-info {
+  text-align: center;
+}
+
+.export-document-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  color: #ddd8ff;
+  margin-bottom: 4px;
+}
+
+.export-stats {
+  font-family: monospace;
+  font-size: 12px;
+  color: #9084ec;
+}
+
+.export-stats.empty {
+  color: #666;
+}
+
+.export-divider {
+  width: 100%;
+  max-width: 300px;
+  height: 1px;
+  background-color: #3d3a55;
+  flex-shrink: 0;
+}
+
+.export-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.export-button {
+  font-family: monospace;
+  font-size: 13px;
+  color: #1c1a2c;
+  background-color: #9084ec;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.export-button:hover:not(.disabled) {
+  background-color: #a89af0;
+  transform: translateY(-1px);
+}
+
+.export-button:active:not(.disabled) {
+  transform: translateY(0);
+}
+
+.export-button.disabled {
+  background-color: #3d3a55;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.export-copied {
+  font-family: monospace;
+  font-size: 13px;
+  color: #4ade80;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateX(-5px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.export-hint {
+  font-family: monospace;
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.export-preview {
+  width: 100%;
+  max-width: 500px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.export-preview-label {
+  font-family: monospace;
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.export-preview-text {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 13px;
+  color: #ddd8ff;
+  opacity: 0.7;
+  line-height: 1.5;
+  padding: 12px;
+  background-color: #252336;
+  border-radius: 6px;
+  white-space: pre-wrap;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
 .assembly-content {
   flex: 1;
   overflow-y: auto;
