@@ -93,6 +93,8 @@ const shouldPreventDefault = (e: KeyboardEvent): boolean => {
   if (e.metaKey && e.shiftKey && e.key.toLowerCase() === "c") return true;
   // Prevent Cmd+Shift+Up/Down (jump to start/end of document)
   if (e.metaKey && e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) return true;
+  // Prevent Cmd+Up/Down (scroll in editor)
+  if (e.metaKey && !e.shiftKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) return true;
   // Prevent single character keys (typing)
   if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) return true;
   return false;

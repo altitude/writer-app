@@ -227,6 +227,8 @@ export const Editor = ({ initialContent = [], initialGhostRanges = [], onContent
   const cursorRef = useRef(cursorPosition);
   cursorRef.current = cursorPosition;
 
+  const preRef = useRef<HTMLPreElement>(null);
+
   const [wordSelection, setWordSelection] = useState(null as { start: number; end: number; direction: 'left' | 'right' } | null);
   const wordSelectionRef = useRef(wordSelection);
   wordSelectionRef.current = wordSelection;
@@ -649,6 +651,22 @@ export const Editor = ({ initialContent = [], initialGhostRanges = [], onContent
 
       if (event.key === "Escape") {
         clearSelections();
+      }
+
+      // Cmd+Up: Scroll up
+      if (event.key === "ArrowUp" && event.metaKey && !event.shiftKey) {
+        if (preRef.current) {
+          preRef.current.scrollBy({ top: -60, behavior: 'smooth' });
+        }
+        return;
+      }
+
+      // Cmd+Down: Scroll down
+      if (event.key === "ArrowDown" && event.metaKey && !event.shiftKey) {
+        if (preRef.current) {
+          preRef.current.scrollBy({ top: 60, behavior: 'smooth' });
+        }
+        return;
       }
 
       // Cmd+Shift+Up: Move cursor to start of document
@@ -1201,7 +1219,7 @@ export const Editor = ({ initialContent = [], initialGhostRanges = [], onContent
 
   return (
     <div className="editor-container">
-      <pre>{renderText(ast)}</pre>
+      <pre ref={preRef}>{renderText(ast)}</pre>
       <SuggestionBar 
         suggestions={suggestions}
         currentPrefix={currentPrefix}

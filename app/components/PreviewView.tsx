@@ -51,16 +51,16 @@ export const PreviewView = ({ onClose }: PreviewViewProps) => {
     // We'll track character positions as we go
     let charPos = 0;
     const committedParts: string[] = [];
+    let pendingSeparator = ''; // Accumulate separators from uncommitted sentences
     
     for (let i = 0; i < fragment.sentences.length; i++) {
       const sentence = fragment.sentences[i];
       const isLast = i === fragment.sentences.length - 1;
       const sentenceLength = sentence.text.length;
-      const separatorLength = isLast ? 0 : (sentence.separator ?? ' ').length;
+      const separator = isLast ? '' : (sentence.separator ?? ' ');
       
       // Check how much of this sentence overlaps with ghost ranges
       const sentenceStart = charPos;
-      const sentenceEnd = charPos + sentenceLength;
       
       if (sentence.committed) {
         // Get the portion of this sentence that isn't ghosted
@@ -78,17 +78,22 @@ export const PreviewView = ({ onClose }: PreviewViewProps) => {
         }
         
         if (sentenceText.length > 0) {
-          committedParts.push(sentenceText);
-          // Add separator if not last committed part
-          if (!isLast && sentence.separator) {
-            committedParts.push(sentence.separator);
-          } else if (!isLast) {
-            committedParts.push(' ');
+          // Add any pending separator from previous uncommitted sentences
+          if (committedParts.length > 0 && pendingSeparator) {
+            committedParts.push(pendingSeparator);
           }
+          committedParts.push(sentenceText);
+          pendingSeparator = separator; // Save this sentence's separator for next
+        }
+      } else {
+        // Uncommitted sentence: accumulate its separator
+        // Use the "largest" separator (prefer one with newlines)
+        if (separator.includes('\n') || !pendingSeparator) {
+          pendingSeparator = separator || pendingSeparator;
         }
       }
       
-      charPos += sentenceLength + separatorLength;
+      charPos += sentenceLength + separator.length;
     }
     
     const text = committedParts.join('').trim();
